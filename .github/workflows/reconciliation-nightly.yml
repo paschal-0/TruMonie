@@ -1,0 +1,57 @@
+name: Nightly Reconciliation
+
+on:
+  schedule:
+    - cron: '15 0 * * *'
+  workflow_dispatch:
+    inputs:
+      recon_date:
+        description: 'Optional UTC date (YYYY-MM-DD). Leave empty to use current UTC day.'
+        required: false
+        type: string
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      NODE_ENV: production
+      POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+      POSTGRES_PORT: ${{ secrets.POSTGRES_PORT || '5432' }}
+      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+      POSTGRES_SSL: ${{ secrets.POSTGRES_SSL || 'false' }}
+      QA_RECON_DATE: ${{ github.event.inputs.recon_date }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Reconciliation
+        id: reconcile
+        run: |
+          mkdir -p docs/qa/reports
+          REPORT_PATH="docs/qa/reports/reconciliation-${GITHUB_RUN_ID}.json"
+          echo "report_path=$REPORT_PATH" >> "$GITHUB_OUTPUT"
+          QA_RECON_OUTPUT="$REPORT_PATH" npm run qa:reconcile
+
+      - name: Upload Reconciliation Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reconciliation-report-${{ github.run_id }}
+          path: backend/${{ steps.reconcile.outputs.report_path }}
+          if-no-files-found: warn
