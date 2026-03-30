@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import React from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '../components/Themed';
 import { useCards } from '../hooks/useCards';
@@ -8,23 +8,19 @@ import { useCardBlock, useCardCreate, useCardUnblock } from '../hooks/useMutatio
 import { GlassCard } from '../components/GlassCard';
 import { GradientButton } from '../components/GradientButton';
 import { colors, radius } from '../theme';
-
-const demoCards = [
-  { id: 'demo1', currency: 'NGN', last4: '4421', status: 'active', limit: '₦500,000', spend: '₦120,000' },
-  { id: 'demo2', currency: 'USD', last4: '9931', status: 'blocked', limit: '$2,000', spend: '$250' }
-];
+import { useWallets } from '../hooks/useWallets';
 
 export const CardsScreen: React.FC = () => {
   const { session } = useAuth();
   const { data: cards, isLoading, isError } = useCards(session?.accessToken);
+  const { data: wallets } = useWallets(session?.accessToken);
   const create = useCardCreate(session?.accessToken);
   const block = useCardBlock(session?.accessToken);
   const unblock = useCardUnblock(session?.accessToken);
-  const [fundingAccountId, setFundingAccountId] = useState('');
-  const [cardId, setCardId] = useState('');
 
-  const hasRealCards = Boolean(cards && cards.length > 0);
-  const displayCards = hasRealCards ? cards! : demoCards;
+  const ngnWallet = wallets?.find((wallet: any) => wallet.currency === 'NGN');
+  const canCreateCard = Boolean(ngnWallet?.id);
+  const list = cards ?? [];
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -42,78 +38,81 @@ export const CardsScreen: React.FC = () => {
         </View>
       </GlassCard>
 
+      <GlassCard style={{ marginTop: 16 }}>
+        <ThemedText style={styles.sectionTitle}>Create Virtual Card</ThemedText>
+        <ThemedText style={styles.cardSub}>
+          Funding wallet: {ngnWallet?.id ?? 'No NGN wallet found'}
+        </ThemedText>
+        {!canCreateCard && (
+          <ThemedText style={styles.error}>Create or fund an NGN wallet before creating a card.</ThemedText>
+        )}
+        {create.isPending ? (
+          <ActivityIndicator color={colors.accent} />
+        ) : (
+          <GradientButton
+            title="Create Card"
+            onPress={() => {
+              if (!canCreateCard) return;
+              create.mutate({
+                fundingAccountId: ngnWallet!.id,
+                currency: 'NGN'
+              });
+            }}
+            style={{ marginTop: 10 }}
+          />
+        )}
+        {create.error && <ThemedText style={styles.error}>{(create.error as Error).message}</ThemedText>}
+      </GlassCard>
+
       {isLoading && <ActivityIndicator color={colors.accent} />}
       {isError && <ThemedText style={styles.error}>Failed to load cards</ThemedText>}
 
-      {displayCards.map((c: any) => (
-        <GlassCard key={c.id} style={styles.cardItem}>
-          <View style={styles.cardRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={styles.cardBadge}>
-                <ThemedText style={styles.badgeText}>{c.currency}</ThemedText>
-              </View>
-              <View>
-                <ThemedText style={styles.cardTitle}>{c.currency} ••••{c.last4}</ThemedText>
-                <ThemedText style={styles.cardSub}>Limit: {c.limit ?? '—'}</ThemedText>
-              </View>
-            </View>
-            <ThemedText style={[styles.status, c.status === 'blocked' ? styles.statusBlocked : styles.statusActive]}>
-              {c.status}
-            </ThemedText>
-          </View>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: '35%' }]} />
-          </View>
-          <ThemedText style={styles.cardSub}>Spend this month: {c.spend ?? '—'}</ThemedText>
+      {!isLoading && list.length === 0 && (
+        <GlassCard style={{ marginTop: 16 }}>
+          <ThemedText style={styles.cardSub}>No cards yet. Create your first card above.</ThemedText>
         </GlassCard>
-      ))}
+      )}
 
-      <GlassCard style={{ marginTop: 16 }}>
-        <ThemedText style={styles.sectionTitle}>Create Virtual Card</ThemedText>
-        <ThemedText style={styles.label}>Funding Account ID</ThemedText>
-        <TextInput
-          style={styles.input}
-          placeholder="account-id"
-          placeholderTextColor={colors.textSecondary}
-          value={fundingAccountId}
-          onChangeText={setFundingAccountId}
-          autoCapitalize="none"
-        />
-        <GradientButton
-          title="Create Card"
-          onPress={() =>
-            create.mutate({
-              fundingAccountId,
-              currency: 'NGN'
-            })
-          }
-          style={{ marginTop: 10 }}
-        />
-      </GlassCard>
+      {list.map((card: any) => {
+        const normalizedStatus = String(card.status ?? '').toUpperCase();
+        const isBlocked = normalizedStatus === 'BLOCKED';
+        const statusLabel =
+          normalizedStatus.length > 0
+            ? `${normalizedStatus.charAt(0)}${normalizedStatus.slice(1).toLowerCase()}`
+            : 'Unknown';
 
-      <GlassCard style={{ marginTop: 16, marginBottom: 24 }}>
-        <ThemedText style={styles.sectionTitle}>Block / Unblock</ThemedText>
-        <ThemedText style={styles.label}>Card ID</ThemedText>
-        <TextInput
-          style={styles.input}
-          placeholder="Card ID"
-          placeholderTextColor={colors.textSecondary}
-          value={cardId}
-          onChangeText={setCardId}
-          autoCapitalize="none"
-        />
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
-          <GradientButton title="Block" onPress={() => block.mutate(cardId)} style={{ flex: 1 }} />
-          <GradientButton title="Unblock" onPress={() => unblock.mutate(cardId)} style={{ flex: 1 }} />
-        </View>
-        {(create.error || block.error || unblock.error) && (
-          <ThemedText style={styles.error}>
-            {(create.error as Error | undefined)?.message ||
-              (block.error as Error | undefined)?.message ||
-              (unblock.error as Error | undefined)?.message}
-          </ThemedText>
-        )}
-      </GlassCard>
+        return (
+          <GlassCard key={card.id} style={styles.cardItem}>
+            <View style={styles.cardRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={styles.cardBadge}>
+                  <ThemedText style={styles.badgeText}>{card.currency}</ThemedText>
+                </View>
+                <View>
+                  <ThemedText style={styles.cardTitle}>{card.currency} ****{card.last4}</ThemedText>
+                  <ThemedText style={styles.cardSub}>Card ID: {card.id}</ThemedText>
+                </View>
+              </View>
+              <ThemedText style={[styles.status, isBlocked ? styles.statusBlocked : styles.statusActive]}>
+                {statusLabel}
+              </ThemedText>
+            </View>
+            <View style={styles.actions}>
+              {isBlocked ? (
+                <GradientButton title="Unblock" onPress={() => unblock.mutate(card.id)} style={{ flex: 1 }} />
+              ) : (
+                <GradientButton title="Block" onPress={() => block.mutate(card.id)} style={{ flex: 1 }} />
+              )}
+            </View>
+          </GlassCard>
+        );
+      })}
+
+      {(block.error || unblock.error) && (
+        <ThemedText style={styles.error}>
+          {(block.error as Error | undefined)?.message || (unblock.error as Error | undefined)?.message}
+        </ThemedText>
+      )}
     </ScrollView>
   );
 };
@@ -132,9 +131,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
-  cardItem: {
-    marginTop: 12
-  },
+  cardItem: { marginTop: 12 },
   cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -155,23 +152,7 @@ const styles = StyleSheet.create({
   status: { fontWeight: '800', textTransform: 'capitalize' },
   statusBlocked: { color: 'tomato' },
   statusActive: { color: colors.accent },
-  progressTrack: {
-    height: 6,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginBottom: 4
-  },
-  progressFill: { height: 6, borderRadius: 3, backgroundColor: colors.accent },
+  actions: { flexDirection: 'row', gap: 8, marginTop: 10 },
   sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 10 },
-  label: { color: colors.textSecondary, marginTop: 10, marginBottom: 6 },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: 12,
-    color: colors.textPrimary,
-    backgroundColor: 'rgba(255,255,255,0.04)'
-  },
   error: { color: 'tomato', marginTop: 8 }
 });

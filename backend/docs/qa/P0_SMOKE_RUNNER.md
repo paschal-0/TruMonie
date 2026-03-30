@@ -16,6 +16,7 @@ npm run qa:smoke:p0
 - `AUTH-003`
 - `AUTH-006`
 - `WALLET-001`
+- `WALLET-003`
 - `WALLET-002`
 - `PAY-003` (internal webhook funding)
 - `PAY-001` (p2p transfer)

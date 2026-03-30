@@ -10,7 +10,7 @@ export const LoginScreen: React.FC = () => {
   const { login } = useAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const { mutate, isLoading, error } = useLogin((data) =>
+  const { mutate, isPending, error } = useLogin((data) =>
     login({ accessToken: data.tokens.accessToken, refreshToken: data.tokens.refreshToken })
   );
 
@@ -35,7 +35,7 @@ export const LoginScreen: React.FC = () => {
         onChangeText={setPassword}
       />
       {error && <ThemedText style={styles.error}>{(error as Error).message}</ThemedText>}
-      {isLoading ? (
+      {isPending ? (
         <ActivityIndicator color={colors.accent} />
       ) : (
         <GradientButton title="Login" onPress={() => mutate({ identifier, password })} style={{ marginTop: 10 }} />

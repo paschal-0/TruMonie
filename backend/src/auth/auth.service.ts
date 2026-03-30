@@ -24,7 +24,10 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     const user = await this.usersService.create(dto);
-    await this.accountsService.ensureUserBaseAccounts(user.id);
+    await this.accountsService.ensureUserBaseAccounts(user.id, {
+      accountNumberSource: dto.usePhoneAsAccountNumber ? 'PHONE' : 'SYSTEM',
+      phoneNumber: user.phoneNumber
+    });
     return {
       user: this.sanitizeUser(user),
       tokens: await this.signTokens(user)
@@ -80,12 +83,15 @@ export class AuthService {
       email: user.email,
       phoneNumber: user.phoneNumber
     };
+    const accessExpiresIn = this.normalizeJwtExpiry(this.configService.get<string>('jwt.expiresIn'));
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: this.configService.get<string>('jwt.secret'),
-      expiresIn: this.configService.get<string>('jwt.expiresIn')
+      expiresIn: accessExpiresIn
     });
     const refreshJti = randomUUID();
-    const refreshExpiresIn = this.configService.get<string>('jwt.refreshExpiresIn') ?? '7d';
+    const refreshExpiresIn = this.normalizeJwtExpiry(
+      this.configService.get<string>('jwt.refreshExpiresIn') ?? '7d'
+    );
     const refreshPayload: JwtPayload = { ...payload, jti: refreshJti };
     const refreshToken = await this.jwtService.signAsync(refreshPayload, {
       secret: this.configService.get<string>('jwt.refreshSecret'),
@@ -110,5 +116,15 @@ export class AuthService {
     if (interval.endsWith('h')) return parseInt(interval, 10) * 3600;
     if (interval.endsWith('m')) return parseInt(interval, 10) * 60;
     return parseInt(interval, 10);
+  }
+
+  private normalizeJwtExpiry(interval?: string | number): string | number {
+    if (interval === undefined || interval === null) return 3600;
+    if (typeof interval === 'number') return interval;
+    const trimmed = interval.trim();
+    if (/^\d+$/.test(trimmed)) {
+      return Number.parseInt(trimmed, 10);
+    }
+    return trimmed;
   }
 }

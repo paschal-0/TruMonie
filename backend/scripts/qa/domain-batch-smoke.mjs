@@ -13,10 +13,8 @@ function id(prefix) {
 }
 
 function randomPhone() {
-  const prefixes = ['70', '80', '81', '90', '91'];
-  const p = prefixes[Math.floor(Math.random() * prefixes.length)];
-  const rest = `${Math.floor(Math.random() * 10 ** 8)}`.padStart(8, '0');
-  return `+234${p}${rest}`;
+  const rest = `${Math.floor(Math.random() * 10 ** 7)}`.padStart(7, '0');
+  return `+234803${rest}`;
 }
 
 async function request(method, path, { token, body, headers } = {}) {

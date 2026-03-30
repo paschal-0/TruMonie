@@ -106,5 +106,9 @@ Release candidate is go-live ready only when:
 ## 10) Immediate Next Actions
 1. Import and execute [`ENDPOINT_TEST_MATRIX.csv`](./ENDPOINT_TEST_MATRIX.csv) as your QA master sheet.
 2. Run automated P0 smoke: `npm run qa:smoke:p0` (see [`P0_SMOKE_RUNNER.md`](./P0_SMOKE_RUNNER.md)).
-3. Schedule Ajo certification run with seeded users and real settlement accounts in staging.
-4. Run reconciliation script after each test batch and sign off daily.
+3. Run domain regression smoke (`cards`, `bills`, `savings`, `fx`, `kyc`, `remittance`): `npm run qa:smoke:domain`.
+4. Run security controls smoke (`RBAC`, `authorization negatives`, audit checks): `npm run qa:smoke:security`.
+5. Run reliability smoke (`idempotency`, `concurrency`, provider negatives): `npm run qa:smoke:reliability`.
+6. Run load baseline (`auth/login`, `wallets`, `statement`): `npm run qa:load:baseline`.
+7. Run reconciliation script after each test batch and sign off daily: `npm run qa:reconcile`.
+8. Use one-command full gate in staging: `npm run qa:certify` (see [`FULL_CERTIFICATION_RUNNER.md`](./FULL_CERTIFICATION_RUNNER.md)).

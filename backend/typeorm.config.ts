@@ -26,7 +26,7 @@ import { Card } from './src/cards/entities/card.entity';
 dotenv.config();
 const config = configuration();
 
-export const AppDataSource = new DataSource({
+const dataSource = new DataSource({
   type: 'postgres',
   host: config.database.host,
   port: config.database.port,
@@ -60,4 +60,4 @@ export const AppDataSource = new DataSource({
   synchronize: false
 });
 
-export default AppDataSource;
+export default dataSource;

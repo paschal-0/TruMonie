@@ -15,7 +15,7 @@ export const OtpScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <ThemedText style={styles.heading}>Enter OTP</ThemedText>
-      <ThemedText style={styles.sub}>We’ll send a 6-digit code to verify.</ThemedText>
+      <ThemedText style={styles.sub}>We'll send a 6-digit code to verify.</ThemedText>
       <TextInput
         placeholder="Phone or email"
         placeholderTextColor={colors.textSecondary}
@@ -30,11 +30,15 @@ export const OtpScreen: React.FC = () => {
         value={purpose}
         onChangeText={setPurpose}
       />
-      <GradientButton
-        title="Send OTP"
-        onPress={() => sendOtp.mutate({ destination, purpose, channel: 'sms' })}
-        style={{ marginTop: 8 }}
-      />
+      {sendOtp.isPending ? (
+        <ActivityIndicator color={colors.accent} />
+      ) : (
+        <GradientButton
+          title="Send OTP"
+          onPress={() => sendOtp.mutate({ destination, purpose, channel: 'sms' })}
+          style={{ marginTop: 8 }}
+        />
+      )}
       <TextInput
         placeholder="6-digit code"
         placeholderTextColor={colors.textSecondary}
@@ -43,10 +47,14 @@ export const OtpScreen: React.FC = () => {
         value={code}
         onChangeText={setCode}
       />
-      {verifyOtp.isLoading ? (
+      {verifyOtp.isPending ? (
         <ActivityIndicator color={colors.accent} />
       ) : (
-        <GradientButton title="Verify" onPress={() => verifyOtp.mutate({ destination, purpose, code })} style={{ marginTop: 8 }} />
+        <GradientButton
+          title="Verify"
+          onPress={() => verifyOtp.mutate({ destination, purpose, code })}
+          style={{ marginTop: 8 }}
+        />
       )}
       {(sendOtp.error || verifyOtp.error) && (
         <ThemedText style={styles.error}>

@@ -8,3 +8,14 @@ export function useWallets(token?: string) {
     enabled: !!token
   });
 }
+
+export function useWalletAccountNumber(token?: string, currency: 'NGN' | 'USD' = 'NGN') {
+  return useQuery({
+    queryKey: ['wallets', 'account-number', currency],
+    queryFn: () => apiGet<{ accountId: string; accountNumber: string; currency: string }>(
+      `/wallets/account-number?currency=${currency}`,
+      token
+    ),
+    enabled: !!token
+  });
+}

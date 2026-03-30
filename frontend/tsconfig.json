@@ -12,7 +12,7 @@
     "isolatedModules": true,
     "resolveJsonModule": true,
     "strict": false,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "types": [
       "react",
       "react-native"

@@ -5,12 +5,37 @@ const BASE_URL =
   Constants.expoConfig?.extra?.apiUrl ||
   'http://localhost:3000/api';
 
+class ApiError extends Error {
+  status: number;
+  details: unknown;
+  code?: string;
+
+  constructor(message: string, status: number, details: unknown = null, code?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.details = details;
+    this.code = code;
+  }
+}
+
+function parseJson(text: string) {
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   const text = await res.text();
-  const data = text ? JSON.parse(text) : {};
+  const data = parseJson(text);
   if (!res.ok) {
-    const message = (data && data.message) || res.statusText;
-    throw new Error(message);
+    const payload = (data as any) ?? {};
+    const envelopeError = payload.error ?? {};
+    const message = envelopeError.message ?? payload.message ?? res.statusText ?? 'Request failed';
+    throw new ApiError(message, res.status, envelopeError.details ?? payload.details ?? null, envelopeError.code);
   }
   return data as T;
 }

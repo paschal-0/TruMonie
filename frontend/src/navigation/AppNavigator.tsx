@@ -22,6 +22,7 @@ const RootStack = createNativeStackNavigator();
 function MainTabs() {
   return (
     <Tab.Navigator
+      id="main-tabs"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: '#0f766e',
@@ -52,7 +53,7 @@ function MainTabs() {
 export function AppNavigator() {
   const { session, hydrating } = useAuth();
   return (
-    <RootStack.Navigator screenOptions={{ headerShown: false }}>
+    <RootStack.Navigator id="root-stack" screenOptions={{ headerShown: false }}>
       {hydrating ? (
         <RootStack.Screen name="Splash" component={SplashScreen} />
       ) : session ? (

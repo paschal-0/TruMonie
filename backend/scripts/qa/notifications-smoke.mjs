@@ -14,10 +14,8 @@ function rand(prefix) {
 }
 
 function randomPhone() {
-  const starts = ['70', '80', '81', '90', '91'];
-  const start = starts[Math.floor(Math.random() * starts.length)];
-  const rest = `${Math.floor(Math.random() * 10 ** 8)}`.padStart(8, '0');
-  return `+234${start}${rest}`;
+  const rest = `${Math.floor(Math.random() * 10 ** 7)}`.padStart(7, '0');
+  return `+234803${rest}`;
 }
 
 async function request(method, path, { token, body, headers } = {}) {
@@ -108,6 +106,24 @@ async function main() {
     return member.email;
   });
 
+  await step('LOGIN-CREATOR', async () => {
+    const res = await request('POST', '/auth/login', {
+      body: { identifier: creator.email, password }
+    });
+    creatorToken = res?.tokens?.accessToken;
+    if (!creatorToken) throw new Error('missing creator login token');
+    return 'creator token refreshed';
+  });
+
+  await step('LOGIN-MEMBER', async () => {
+    const res = await request('POST', '/auth/login', {
+      body: { identifier: member.email, password }
+    });
+    memberToken = res?.tokens?.accessToken;
+    if (!memberToken) throw new Error('missing member login token');
+    return 'member token refreshed';
+  });
+
   await step('FUND-CREATOR', async () => {
     await request('POST', '/payments/webhook/internal', {
       headers: { 'x-signature': 'qa-signature' },
@@ -152,6 +168,7 @@ async function main() {
   });
 
   await step('AJO-JOIN-TRIGGERS-NOTIFICATION', async () => {
+    if (!groupId) throw new Error('group not created');
     const res = await request('POST', `/ajo/groups/${groupId}/join`, {
       token: memberToken
     });
@@ -160,6 +177,7 @@ async function main() {
   });
 
   await step('AJO-RUN-CYCLE-TRIGGERS-PAYOUT-NOTIFICATION', async () => {
+    if (!groupId) throw new Error('group not created');
     const res = await request('POST', `/ajo/groups/${groupId}/run-cycle`, {
       token: creatorToken
     });

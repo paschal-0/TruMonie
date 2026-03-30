@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View, Image, FlatList } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,9 +7,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ThemedText } from '../components/Themed';
 import { GlassCard } from '../components/GlassCard';
 import { GradientButton } from '../components/GradientButton';
-import { colors, gradients, radius } from '../theme';
+import { colors, radius } from '../theme';
+import { useAuth } from '../providers/AuthProvider';
+import { useWallets } from '../hooks/useWallets';
+import { useWalletStatement } from '../hooks/useWalletStatement';
+import { useSavingsVaults } from '../hooks/useSavingsVaults';
+import { useProfile } from '../hooks/useProfile';
 
 type NavTargets = 'Wallet' | 'Bills' | 'Ajo' | 'Savings' | 'FX' | 'Remit' | 'Cards' | 'Settings';
+type GradientPair = readonly [string, string];
 
 const actions: { label: string; target: NavTargets; icon: keyof typeof Ionicons.glyphMap }[] = [
   { label: 'Send', target: 'Wallet', icon: 'arrow-up-circle' },
@@ -20,35 +26,84 @@ const actions: { label: string; target: NavTargets; icon: keyof typeof Ionicons.
   { label: 'FX', target: 'FX', icon: 'swap-horizontal' }
 ];
 
-const reefs = [
-  { id: '1', title: 'Vacation', saved: '$1,200 saved', progress: 0.6, color: ['#005d57', '#0a1e2f'] },
-  { id: '2', title: 'Emergency', saved: '$5,000 saved', progress: 0.25, color: ['#bf6a4f', '#0a1e2f'] },
-  { id: '3', title: 'New Car', saved: '$4,500 saved', progress: 0.1, color: ['#3b4f73', '#0a1e2f'] }
+const reefPalette: GradientPair[] = [
+  ['#005d57', '#0a1e2f'],
+  ['#bf6a4f', '#0a1e2f'],
+  ['#3b4f73', '#0a1e2f']
 ];
 
-const recent = [
-  { id: 'r1', name: 'Netflix', desc: 'Subscription', amount: '-$15.99', positive: false, icon: 'film-outline', color: '#b23b3b' },
-  { id: 'r2', name: 'Salary Income', desc: 'Monthly Pay', amount: '+$3,200.00', positive: true, icon: 'cash-outline', color: '#0d7d4e' },
-  { id: 'r3', name: 'Starbucks', desc: 'Food & Drink', amount: '-$5.40', positive: false, icon: 'cafe-outline', color: '#c26f2b' }
-];
+const currencySymbol: Record<string, string> = {
+  NGN: '\u20A6',
+  USD: '$'
+};
+
+function formatMinor(amountMinor: string | number | null | undefined, currency = 'NGN') {
+  const symbol = currencySymbol[currency] ?? '';
+  const amount = Number(amountMinor ?? 0);
+  if (!Number.isFinite(amount)) return `${symbol}0.00`;
+  return `${symbol}${(amount / 100).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
+}
+
+function formatDate(value?: string) {
+  if (!value) return 'Just now';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return 'Just now';
+  return parsed.toLocaleString();
+}
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { session } = useAuth();
+  const { data: profile } = useProfile(session?.accessToken);
+  const { data: wallets } = useWallets(session?.accessToken);
+  const { data: vaults } = useSavingsVaults(session?.accessToken);
+
+  const ngnWallet = wallets?.find((wallet: any) => wallet.currency === 'NGN');
+  const accountId = ngnWallet?.id ?? wallets?.[0]?.id;
+  const { data: statement } = useWalletStatement(session?.accessToken, accountId, 5);
+
+  const displayName = profile?.firstName ?? profile?.username ?? 'there';
+
+  const totalLiquidityMinor = useMemo(
+    () =>
+      (wallets ?? [])
+        .filter((wallet: any) => wallet.currency === 'NGN')
+        .reduce((sum: number, wallet: any) => sum + Number(wallet.balanceMinor || 0), 0),
+    [wallets]
+  );
+
+  const reefItems = useMemo(
+    () =>
+      (vaults ?? []).slice(0, 3).map((vault: any, index: number) => {
+        const target = Number(vault.targetAmountMinor || 0);
+        const balance = Number(vault.balanceMinor || 0);
+        const progress = target > 0 ? Math.max(0, Math.min(1, balance / target)) : 0;
+        return {
+          id: vault.id,
+          title: vault.name ?? `Vault ${index + 1}`,
+          saved: `${formatMinor(balance, vault.currency)} saved`,
+          progress,
+          color: reefPalette[index % reefPalette.length]
+        };
+      }),
+    [vaults]
+  );
+
+  const recentLines = statement?.lines ?? [];
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* Header */}
       <View style={styles.headerRow}>
         <View style={styles.avatarWrap}>
-          <Image
-            source={{ uri: 'https://i.pravatar.cc/100?img=12' }}
-            style={styles.avatar}
-          />
+          <Image source={{ uri: 'https://i.pravatar.cc/100?img=12' }} style={styles.avatar} />
           <View style={styles.statusDot} />
         </View>
         <View style={{ flex: 1, marginLeft: 12 }}>
           <ThemedText style={styles.greetingLabel}>Good evening,</ThemedText>
-          <ThemedText style={styles.greetingName}>Alex</ThemedText>
+          <ThemedText style={styles.greetingName}>{displayName}</ThemedText>
         </View>
         <View style={styles.bell}>
           <Ionicons name="notifications-outline" size={20} color={colors.textPrimary} />
@@ -56,23 +111,24 @@ export const HomeScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* Liquidity Card */}
       <GlassCard style={styles.liquidityCard}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
           <Ionicons name="shield-checkmark" size={18} color={colors.accent} />
-          <ThemedText style={styles.kicker}>  TOTAL LIQUIDITY</ThemedText>
+          <ThemedText style={styles.kicker}>  PRIMARY LIQUIDITY (NGN)</ThemedText>
         </View>
-        <ThemedText style={styles.bigBalance}>$24,593.00</ThemedText>
+        <ThemedText style={styles.bigBalance}>{formatMinor(totalLiquidityMinor, 'NGN')}</ThemedText>
+        <ThemedText style={styles.balanceMeta}>
+          Account: {ngnWallet?.accountNumber ?? 'Not provisioned yet'}
+        </ThemedText>
         <View style={{ marginTop: 16, alignItems: 'flex-start' }}>
-          <GradientButton title="+ Add Money" onPress={() => navigation.navigate('Wallet' as never)} style={{ width: 160 }} />
-        </View>
-        <View style={styles.toggleGhost}>
-          <View style={styles.toggleCircle} />
-          <View style={[styles.toggleCircle, { left: 32, opacity: 0.5 }]} />
+          <GradientButton
+            title="+ Add Money"
+            onPress={() => navigation.navigate('Wallet' as never)}
+            style={{ width: 160 }}
+          />
         </View>
       </GlassCard>
 
-      {/* Quick Actions */}
       <View style={styles.sectionHeader}>
         <ThemedText style={styles.sectionTitle}>Quick Actions</ThemedText>
       </View>
@@ -93,52 +149,72 @@ export const HomeScreen: React.FC = () => {
         ))}
       </View>
 
-      {/* Reefs */}
       <View style={styles.sectionHeader}>
         <ThemedText style={styles.sectionTitle}>My Reefs</ThemedText>
-        <ThemedText style={styles.sectionLink}>View All</ThemedText>
+        <ThemedText style={styles.sectionLink}>Savings Vaults</ThemedText>
       </View>
-      <FlatList
-        data={reefs}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: 12, paddingVertical: 6 }}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <LinearGradient colors={item.color} style={styles.reefCard}>
-            <View style={styles.progressBarOuter}>
-              <View style={[styles.progressBarInner, { width: `${item.progress * 100}%` }]} />
-            </View>
-            <ThemedText style={styles.reefTitle}>{item.title}</ThemedText>
-            <ThemedText style={styles.reefSub}>{item.saved}</ThemedText>
-            <View style={styles.percentPill}>
-              <ThemedText style={styles.percentText}>{Math.round(item.progress * 100)}%</ThemedText>
-            </View>
-          </LinearGradient>
-        )}
-      />
+      {reefItems.length === 0 ? (
+        <GlassCard style={{ marginTop: 8 }}>
+          <ThemedText style={styles.emptyText}>No savings vault yet. Open Savings to create one.</ThemedText>
+        </GlassCard>
+      ) : (
+        <FlatList
+          data={reefItems}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 12, paddingVertical: 6 }}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <LinearGradient colors={item.color} style={styles.reefCard}>
+              <View style={styles.progressBarOuter}>
+                <View style={[styles.progressBarInner, { width: `${item.progress * 100}%` }]} />
+              </View>
+              <ThemedText style={styles.reefTitle}>{item.title}</ThemedText>
+              <ThemedText style={styles.reefSub}>{item.saved}</ThemedText>
+              <View style={styles.percentPill}>
+                <ThemedText style={styles.percentText}>{Math.round(item.progress * 100)}%</ThemedText>
+              </View>
+            </LinearGradient>
+          )}
+        />
+      )}
 
-      {/* Recent Flow */}
       <View style={styles.sectionHeader}>
         <ThemedText style={styles.sectionTitle}>Recent Flow</ThemedText>
       </View>
       <View style={{ gap: 10, marginBottom: 24 }}>
-        {recent.map((r) => (
-          <GlassCard key={r.id} style={styles.recentCard}>
-            <View style={styles.recentLeft}>
-              <View style={[styles.recentIcon, { backgroundColor: r.color }]}>
-                <Ionicons name={r.icon as any} size={18} color="#fff" />
-              </View>
-              <View>
-                <ThemedText style={styles.recentTitle}>{r.name}</ThemedText>
-                <ThemedText style={styles.recentMeta}>{r.desc}</ThemedText>
-              </View>
-            </View>
-            <ThemedText style={[styles.recentAmount, r.positive ? styles.amountPositive : undefined]}>
-              {r.amount}
-            </ThemedText>
+        {recentLines.length === 0 ? (
+          <GlassCard>
+            <ThemedText style={styles.emptyText}>No recent wallet entries yet.</ThemedText>
           </GlassCard>
-        ))}
+        ) : (
+          recentLines.map((line: any) => {
+            const positive = String(line.direction).toUpperCase() === 'CREDIT';
+            const icon = positive ? 'arrow-down-outline' : 'arrow-up-outline';
+            const bg = positive ? '#0d7d4e' : '#b23b3b';
+            return (
+              <GlassCard key={line.id} style={styles.recentCard}>
+                <View style={styles.recentLeft}>
+                  <View style={[styles.recentIcon, { backgroundColor: bg }]}>
+                    <Ionicons name={icon} size={18} color="#fff" />
+                  </View>
+                  <View>
+                    <ThemedText style={styles.recentTitle}>
+                      {positive ? 'Credit entry' : 'Debit entry'}
+                    </ThemedText>
+                    <ThemedText style={styles.recentMeta}>
+                      {line.memo || formatDate(line.createdAt)}
+                    </ThemedText>
+                  </View>
+                </View>
+                <ThemedText style={[styles.recentAmount, positive ? styles.amountPositive : undefined]}>
+                  {positive ? '+' : '-'}
+                  {formatMinor(line.amountMinor, line.currency)}
+                </ThemedText>
+              </GlassCard>
+            );
+          })
+        )}
       </View>
     </ScrollView>
   );
@@ -206,18 +282,7 @@ const styles = StyleSheet.create({
   },
   kicker: { color: colors.textSecondary, fontSize: 13 },
   bigBalance: { fontSize: 32, fontWeight: '800', letterSpacing: -0.5 },
-  toggleGhost: {
-    flexDirection: 'row',
-    marginTop: 16,
-    opacity: 0.3
-  },
-  toggleCircle: {
-    width: 32,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    position: 'absolute'
-  },
+  balanceMeta: { color: colors.textSecondary, marginTop: 6, fontSize: 12 },
   actionsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -284,7 +349,8 @@ const styles = StyleSheet.create({
   recentLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   recentIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   recentTitle: { fontWeight: '700', fontSize: 15 },
-  recentMeta: { color: colors.textSecondary, fontSize: 12 },
+  recentMeta: { color: colors.textSecondary, fontSize: 12, maxWidth: 180 },
   recentAmount: { fontWeight: '800', fontSize: 15 },
-  amountPositive: { color: colors.accent }
+  amountPositive: { color: colors.accent },
+  emptyText: { color: colors.textSecondary }
 });

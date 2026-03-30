@@ -28,6 +28,10 @@ export class Account extends BaseEntity {
   @Column({ type: 'varchar', length: 128, nullable: true })
   label!: string | null;
 
+  @Index({ unique: true })
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  accountNumber!: string | null;
+
   @Column({ type: 'bigint', default: '0' })
   balanceMinor!: string;
 }

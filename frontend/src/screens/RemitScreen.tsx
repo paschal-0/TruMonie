@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '../components/Themed';
 import { useAuth } from '../providers/AuthProvider';
@@ -33,6 +33,52 @@ export const RemitScreen: React.FC = () => {
     amountMinor: '',
     currency: 'USD'
   });
+
+  const onOutbound = () => {
+    const amountMinor = Number(outForm.amountMinor);
+    if (!outForm.country.trim()) {
+      Alert.alert('Validation', 'Destination country is required.');
+      return;
+    }
+    if (!outForm.bankCode.trim()) {
+      Alert.alert('Validation', 'Bank code is required.');
+      return;
+    }
+    if (!outForm.accountNumber.trim()) {
+      Alert.alert('Validation', 'Account number is required.');
+      return;
+    }
+    if (!Number.isInteger(amountMinor) || amountMinor <= 0) {
+      Alert.alert('Validation', 'Amount must be a positive number.');
+      return;
+    }
+    outbound.mutate({
+      amountMinor,
+      currency: outForm.currency,
+      provider: outForm.provider || undefined,
+      narration: outForm.narration || undefined,
+      destination: {
+        country: outForm.country.trim(),
+        bankCode: outForm.bankCode.trim(),
+        accountNumber: outForm.accountNumber.trim(),
+        accountName: outForm.accountName || undefined
+      }
+    });
+  };
+
+  const onInbound = () => {
+    const amountMinor = Number(inForm.amountMinor);
+    if (!Number.isInteger(amountMinor) || amountMinor <= 0) {
+      Alert.alert('Validation', 'Amount must be a positive number.');
+      return;
+    }
+    inbound.mutate({
+      amountMinor,
+      currency: inForm.currency,
+      provider: inForm.provider || undefined,
+      reference: inForm.reference || undefined
+    });
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -138,27 +184,10 @@ export const RemitScreen: React.FC = () => {
           onChangeText={(t) => setOutForm({ ...outForm, narration: t })}
         />
         {outbound.error && <ThemedText style={styles.error}>{(outbound.error as Error).message}</ThemedText>}
-        {outbound.isLoading ? (
+        {outbound.isPending ? (
           <ActivityIndicator color={colors.accent} />
         ) : (
-          <GradientButton
-            title="Send Outbound"
-            onPress={() =>
-              outbound.mutate({
-                amountMinor: Number(outForm.amountMinor),
-                currency: outForm.currency,
-                provider: outForm.provider,
-                narration: outForm.narration,
-                destination: {
-                  country: outForm.country,
-                  bankCode: outForm.bankCode,
-                  accountNumber: outForm.accountNumber,
-                  accountName: outForm.accountName
-                }
-              })
-            }
-            style={{ marginTop: 10 }}
-          />
+          <GradientButton title="Send Outbound" onPress={onOutbound} style={{ marginTop: 10 }} />
         )}
       </GlassCard>
 
@@ -190,21 +219,10 @@ export const RemitScreen: React.FC = () => {
           onChangeText={(t) => setInForm({ ...inForm, reference: t })}
         />
         {inbound.error && <ThemedText style={styles.error}>{(inbound.error as Error).message}</ThemedText>}
-        {inbound.isLoading ? (
+        {inbound.isPending ? (
           <ActivityIndicator color={colors.accent} />
         ) : (
-          <GradientButton
-            title="Request Inbound"
-            onPress={() =>
-              inbound.mutate({
-                amountMinor: Number(inForm.amountMinor),
-                currency: inForm.currency,
-                provider: inForm.provider,
-                reference: inForm.reference
-              })
-            }
-            style={{ marginTop: 10 }}
-          />
+          <GradientButton title="Request Inbound" onPress={onInbound} style={{ marginTop: 10 }} />
         )}
         <View style={styles.infoRow}>
           <ThemedText style={styles.metaLabel}>Fees</ThemedText>

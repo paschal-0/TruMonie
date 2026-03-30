@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsPhoneNumber, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsPhoneNumber, IsString, MinLength } from 'class-validator';
 
 export class CreateUserDto {
   @IsPhoneNumber('NG')
@@ -27,4 +27,8 @@ export class CreateUserDto {
   @IsString()
   @MinLength(4)
   pin?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  usePhoneAsAccountNumber?: boolean;
 }

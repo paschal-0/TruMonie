@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TruMonie Professional Project Document</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 20px;
+            margin-bottom: 10px;
+        }
+        
+        h2 {
+            font-size: 2em;
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }
+        
+        h3 {
+            font-size: 1.5em;
+            color: #555;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+        
+        h4 {
+            font-size: 1.2em;
+            color: #666;
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+        
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+        
+        .header-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+            font-size: 0.95em;
+        }
+        
+        .header-meta strong {
+            color: #2c3e50;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        table th {
+            background: #3498db;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        table td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        table tr:hover {
+            background: #f5f5f5;
+        }
+        
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #c7254e;
+        }
+        
+        pre {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 20px 0;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+        }
+        
+        .toc {
+            background: #ecf0f1;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin: 30px 0;
+            border-radius: 5px;
+        }
+        
+        .toc ol {
+            margin-left: 20px;
+        }
+        
+        .toc li {
+            margin-bottom: 8px;
+        }
+        
+        .toc a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        
+        ul, ol {
+            margin-left: 30px;
+            margin-bottom: 15px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+        
+        .callout {
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 3px;
+        }
+        
+        .callout strong {
+            color: #2c3e50;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 3px;
+        }
+        
+        .success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 3px;
+        }
+        
+        .section {
+            page-break-inside: avoid;
+        }
+        
+        .page-break {
+            page-break-after: always;
+        }
+        
+        footer {
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            color: #999;
+            font-size: 0.9em;
+            text-align: center;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                max-width: 100%;
+            }
+            h1, h2 {
+                page-break-after: avoid;
+            }
+            p, ul, ol {
+                page-break-inside: avoid;
+            }
+            table {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏦 TruMonie Professional Project Document</h1>
+        
+        <div class="header-meta">
+            <div>
+                <strong>Product:</strong> TruMonie Core Banking Platform<br>
+                <strong>Document Type:</strong> Technical Architecture + Product Specification<br>
+                <strong>Version:</strong> 1.2 (Comprehensive)
+            </div>
+            <div>
+                <strong>Date:</strong> March 29, 2026<br>
+                <strong>Audience:</strong> Technical Teams (Engineers, Architects)<br>
+                <strong>Status:</strong> Ready for Internal Review
+            </div>
+        </div>
+        
+        <div class="toc section">
+            <h2>📋 Table of Contents</h2>
+            <ol>
+                <li><a href="#tech-stack">Technology Stack at a Glance</a></li>
+                <li><a href="#executive">Executive Summary</a></li>
+                <li><a href="#problem">Problem Statement</a></li>
+                <li><a href="#vision">Product Vision</a></li>
+                <li><a href="#users">Target Users</a></li>
+                <li><a href="#scope">Product Scope and Capability Map</a></li>
+                <li><a href="#differentiators">Core Differentiators</a></li>
+                <li><a href="#technical-stack">Detailed Technical Stack</a></li>
+                <li><a href="#architecture">Architecture Overview</a></li>
+                <li><a href="#security">Security, Risk, and Control Framework</a></li>
+                <li><a href="#qa">QA, Testing, and Certification</a></li>
+                <li><a href="#deployment">Deployment and Operations Requirements</a></li>
+                <li><a href="#api">API Reference</a></li>
+                <li><a href="#database">Database Schema and Entity Relationships</a></li>
+                <li><a href="#performance">Performance & Scalability</a></li>
+                <li><a href="#compliance">Compliance and Regulatory Dependencies</a></li>
+                <li><a href="#kpi">KPI Framework</a></li>
+                <li><a href="#constraints">Current Constraints and Risks</a></li>
+            </ol>
+        </div>
+        
+        <div class="section" id="tech-stack">
+            <h2>📊 0. Technology Stack at a Glance</h2>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Layer</th>
+                        <th>Stack</th>
+                        <th>Version</th>
+                        <th>Role in Product</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Core Backend</strong></td>
+                        <td>TypeScript, NestJS</td>
+                        <td>5.2.2, 10.0.0</td>
+                        <td>Modular banking services and APIs with type safety and clean architecture</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Financial Core</strong></td>
+                        <td>Double-entry ledger</td>
+                        <td>Proprietary</td>
+                        <td>All monetary movement posting with atomic transaction guarantees</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Data Layer</strong></td>
+                        <td>PostgreSQL, TypeORM</td>
+                        <td>8.11.3, 0.3.20</td>
+                        <td>Transactional data storage with ACID compliance and schema versioning</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Cache + Messaging</strong></td>
+                        <td>Redis, BullMQ</td>
+                        <td>5.3.2, 5.9.1</td>
+                        <td>Caching, velocity counters, async job processing for Ajo cycles</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Auth & Security</strong></td>
+                        <td>JWT, Passport-JWT, argon2, class-validator</td>
+                        <td>10.2.0, 4.0.1, 0.41.1, 0.14.0</td>
+                        <td>Identity management, token authentication, password hashing, input validation</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Mobile App</strong></td>
+                        <td>React Native, Expo</td>
+                        <td>0.81.5, ~54.0.30</td>
+                        <td>Cross-platform iOS/Android customer experience with OTA updates</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Client State</strong></td>
+                        <td>TanStack React Query</td>
+                        <td>5.59.0</td>
+                        <td>API state caching, automatic refetch, race condition handling</td>
+                    </tr>
+                    <tr>
+                        <td><strong>QA & Testing</strong></td>
+                        <td>Jest, Node.js automation</td>
+                        <td>29.7.0, custom</td>
+                        <td>Functional, security, reliability testing with automated release gates</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="section" id="executive">
+            <h2>🎯 1. Executive Summary</h2>
+            
+            <p><strong>TruMonie</strong> is a ledger-first, modular core-banking platform designed for emerging-market digital finance and community savings workflows (Ajo/Esusu groups). It combines a double-entry transaction engine with pluggable provider adapters, enabling teams to operate in internal/sandbox mode immediately and transition to licensed provider rails later via configuration.</p>
+            
+            <div class="callout">
+                <strong>⭐ Core Value Propositions:</strong>
+                <ul>
+                    <li><strong>Bank-Grade Financial Integrity:</strong> All transactions routed through double-entry ledger with atomic posting and audit trails</li>
+                    <li><strong>Community Finance First-Class Domain:</strong> Ajo/Esusu cycles built into core, not bolted on</li>
+                    <li><strong>Provider-Agnostic Abstraction:</strong> Swap providers via configuration, not platform rewrite</li>
+                    <li><strong>Operational Confidence:</strong> Automated QA, nightly reconciliation, audit logging, release gates</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section" id="key-features">
+            <h2>✨ Key Features Implemented</h2>
+            
+            <h3>Authentication & Identity</h3>
+            <ul>
+                <li>Registration with OTP verification (SMS/Email)</li>
+                <li>JWT access/refresh token lifecycle</li>
+                <li>Token revocation via JTI tracking</li>
+                <li>Multi-device session management</li>
+            </ul>
+            
+            <h3>Financial Core</h3>
+            <ul>
+                <li>Double-entry ledger posting with idempotency</li>
+                <li>Multi-currency support (NGN, USD, others)</li>
+                <li>Wallet management with balance derivation</li>
+                <li>Complete audit trails per transaction</li>
+            </ul>
+            
+            <h3>Ajo/Esusu Community Savings</h3>
+            <ul>
+                <li>Group creation with membership management</li>
+                <li>Cycle-based payouts with deterministic sequencing</li>
+                <li>Penalty settlement for defaults</li>
+                <li>Automated reminders via job queue</li>
+                <li>Activity audit trail for transparency</li>
+            </ul>
+            
+            <h3>Payments & Settlement</h3>
+            <ul>
+                <li>P2P transfers with fee support</li>
+                <li>Bank transfers (internal/Paystack/Flutterwave/Licensed)</li>
+                <li>Webhook funding with signature verification</li>
+                <li>Provider abstraction for easy cutover</li>
+            </ul>
+            
+            <h3>Bills, Cards, FX, Remittance</h3>
+            <ul>
+                <li>Bill payment with biller catalog</li>
+                <li>Card lifecycle (create, block, unblock)</li>
+                <li>FX conversion with real-time rates</li>
+                <li>Inbound/outbound remittance flows</li>
+            </ul>
+            
+            <h3>Risk & Compliance</h3>
+            <ul>
+                <li>Velocity checks for transaction abuse prevention</li>
+                <li>User freezing/unfreezing for suspicious activity</li>
+                <li>Audit logging of privileged actions</li>
+                <li>Device registration for risk assessment</li>
+                <li>KYC verification orchestration</li>
+            </ul>
+        </div>
+        
+        <div class="section" id="architecture">
+            <h2>🏗️ Architecture Highlights</h2>
+            
+            <h3>Layered Architecture</h3>
+            <pre>┌─────────────────────────┐
+│  Client Layer           │ Mobile App (React Native/Expo)
+├─────────────────────────┤
+│  API Layer              │ NestJS Controllers + Guards
+├─────────────────────────┤
+│  Domain Services        │ 16 Banking Domain Modules
+├─────────────────────────┤
+│  Financial Posting      │ Ledger Service (Central Authority)
+├─────────────────────────┤
+│  Data Layer             │ PostgreSQL + TypeORM
+└────────┬────────────────┘
+         │
+    ┌────┼────┬────────────┐
+    │    │    │            │
+   Redis BullMQ QA Scripts Jobs</pre>
+            
+            <h3>Double-Entry Posting Pattern</h3>
+            <pre>Every monetary event routed through ledger:
+Transfer: User A → User B (10,000 NGN)
+  ├─ Line 1: DEBIT User A's wallet by 10,000
+  ├─ Line 2: CREDIT User B's wallet by 10,000
+  └─ Invariant: Total debits = Total credits (enforced at DB level)</pre>
+            
+            <div class="success">
+                <strong>✓ Result:</strong> Complete audit trail, no balance drift, forensic traceability
+            </div>
+        </div>
+        
+        <div class="section" id="qa">
+            <h2>🧪 QA & Release Gates</h2>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Suite</th>
+                        <th>Tests</th>
+                        <th>Scope</th>
+                        <th>Exit Gate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>P0 Smoke</strong></td>
+                        <td>17</td>
+                        <td>Critical retail + Ajo paths</td>
+                        <td>Required for any release</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Domain Batch</strong></td>
+                        <td>25+</td>
+                        <td>Extended features</td>
+                        <td>Required for feature releases</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Security RBAC</strong></td>
+                        <td>12</td>
+                        <td>Authorization, negative tests</td>
+                        <td>Required for access control changes</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Reliability</strong></td>
+                        <td>15</td>
+                        <td>Concurrency, edge cases</td>
+                        <td>Required for production runbooks</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Reconciliation</strong></td>
+                        <td>3</td>
+                        <td>Ledger balance checks</td>
+                        <td>Nightly CI; alerts if fail</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="callout">
+                <strong>Release Gate Formula:</strong><br>
+                ✓ 100% P0 + Domain pass → ✓ Security pass → ✓ Reliability pass → ✓ Reconciliation zero exceptions → Production Approved
+            </div>
+        </div>
+        
+        <div class="section" id="deployment">
+            <h2>🚀 Production Requirements</h2>
+            
+            <h3>Infrastructure</h3>
+            <ul>
+                <li><strong>Database:</strong> Managed PostgreSQL 12+ with multi-AZ replication</li>
+                <li><strong>Cache:</strong> Managed Redis 6+ for OTP, sessions, velocity counters</li>
+                <li><strong>Servers:</strong> Kubernetes/Docker with 3+ replicas for HA</li>
+                <li><strong>SSL:</strong> TLS 1.3+ for all connections</li>
+                <li><strong>Backups:</strong> Daily snapshots, 30-day retention, point-in-time recovery</li>
+            </ul>
+            
+            <h3>Pre-Deployment Checklist</h3>
+            <ul>
+                <li>✓ Database migrations run successfully</li>
+                <li>✓ System treasury/fees/settlement accounts bootstrapped</li>
+                <li>✓ Provider credentials verified (Paystack, Flutterwave, etc.)</li>
+                <li>✓ SSL certificates installed</li>
+                <li>✓ Monitoring dashboards configured</li>
+                <li>✓ QA certification passed (100% test pass rate)</li>
+                <li>✓ Incident runbooks documented</li>
+            </ul>
+        </div>
+        
+        <div class="section" id="compliance">
+            <h2>⚖️ Compliance & Regulatory</h2>
+            
+            <div class="warning">
+                <strong>⚠️ Important:</strong> Technical readiness ≠ Regulatory readiness. Required non-code items:
+                <ul>
+                    <li>CBN or equivalent central bank approval</li>
+                    <li>KYC/AML operational procedures and escalation</li>
+                    <li>Chargeback and dispute workflows</li>
+                    <li>Data governance and retention policies</li>
+                    <li>Privileged access governance and audit review cadence</li>
+                </ul>
+            </div>
+            
+            <p><strong>TruMonie provides enablers:</strong> Immutable audit logs, KYC tracking, velocity thresholds for AML, device fingerprinting for fraud detection, role-based access controls for governance.</p>
+        </div>
+        
+        <div class="section" id="kpi">
+            <h2>📈 Key Performance Indicators</h2>
+            
+            <h3>Product Health</h3>
+            <ul>
+                <li>Funded Monthly Active Wallets (fMAW): Month-over-month growth</li>
+                <li>P2P Transfer Success Rate: &gt; 99.9%</li>
+                <li>Bank Payout Success Rate: &gt; 99%</li>
+                <li>Ajo Cycle Completion Rate: &gt; 95%</li>
+                <li>Ajo Payout Timeliness (within 1h): &gt; 98%</li>
+            </ul>
+            
+            <h3>Financial Integrity</h3>
+            <ul>
+                <li>Reconciliation Critical Exceptions: 0</li>
+                <li>Ledger Balance Mismatch: 0</li>
+                <li>Duplicate Transaction Rate: 0</li>
+                <li>Fee Collection Accuracy: 100%</li>
+            </ul>
+            
+            <h3>Security & Risk</h3>
+            <ul>
+                <li>Fraud Trigger Rate: &lt; 0.5% of transactions</li>
+                <li>False Positive Rate: &lt; 2%</li>
+                <li>Mean Time to Detect Fraud: &lt; 1h</li>
+                <li>Security Test Pass Rate: 100%</li>
+            </ul>
+        </div>
+        
+        <div class="section" id="next-steps">
+            <h2>🎬 Next Steps</h2>
+            
+            <h3>Immediate (0-2 weeks)</h3>
+            <ol>
+                <li>Regulatory team initiates CBN licensing application</li>
+                <li>Operations team sets up production infrastructure (DB, Redis, K8s)</li>
+                <li>Security audit of codebase (external firm)</li>
+                <li>Compliance team finalizes KYC/AML procedures</li>
+            </ol>
+            
+            <h3>Short-term (2-4 weeks)</h3>
+            <ol>
+                <li>Finalize provider contracts (Paystack, Flutterwave, KYC vendor)</li>
+                <li>Preparation for load testing with production traffic volume predictions</li>
+                <li>Runbook testing with ops team</li>
+                <li>Incident response drills</li>
+            </ol>
+            
+            <h3>Medium-term (1-3 months)</h3>
+            <ol>
+                <li>Regulatory approvals (CBN, provider partnerships)</li>
+                <li>Licensed provider integration and UAT</li>
+                <li>Soft launch (limited user cohort, internal provider mode)</li>
+                <li>Production hardening based on soft launch feedback</li>
+            </ol>
+            
+            <h3>Go-Live (3+ months)</h3>
+            <ol>
+                <li>Full launch to production with licensed provider rails</li>
+                <li>24/7 ops team on-call</li>
+                <li>Continuous monitoring and incident response</li>
+            </ol>
+        </div>
+        
+        <div class="section" id="contact">
+            <h2>📞 Document Meta</h2>
+            <ul>
+                <li><strong>Version:</strong> 1.2 (Comprehensive)</li>
+                <li><strong>Last Updated:</strong> March 29, 2026</li>
+                <li><strong>Audience:</strong> Technical Teams (Engineers, Architects, Operations)</li>
+                <li><strong>Status:</strong> Ready for Internal Review</li>
+                <li><strong>Primary Contact:</strong> Engineering Leadership</li>
+            </ul>
+        </div>
+        
+        <footer>
+            <p><strong>TruMonie Core Banking Platform</strong> | Professional Product Document v1.2</p>
+            <p>© 2026 TruMonie. All rights reserved. Confidential.</p>
+        </footer>
+    </div>
+</body>
+</html>

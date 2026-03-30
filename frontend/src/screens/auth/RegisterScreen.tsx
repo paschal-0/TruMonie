@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, TextInput, ActivityIndicator, Switch } from 'react-native';
 import { ThemedText } from '../../components/Themed';
 import { useRegister } from '../../hooks/useAuthActions';
 import { useAuth } from '../../providers/AuthProvider';
@@ -14,7 +14,8 @@ export const RegisterScreen: React.FC = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
-  const { mutate, isLoading, error } = useRegister((data) =>
+  const [usePhoneAsAccountNumber, setUsePhoneAsAccountNumber] = useState(false);
+  const { mutate, isPending, error } = useRegister((data) =>
     login({ accessToken: data.tokens.accessToken, refreshToken: data.tokens.refreshToken })
   );
 
@@ -66,8 +67,17 @@ export const RegisterScreen: React.FC = () => {
         value={password}
         onChangeText={setPassword}
       />
+      <View style={styles.switchRow}>
+        <View style={{ flex: 1 }}>
+          <ThemedText style={styles.switchTitle}>Use phone as account number</ThemedText>
+          <ThemedText style={styles.switchSub}>
+            ON: remove leading 0 from phone. OFF: auto-generate 10 digits starting with 34.
+          </ThemedText>
+        </View>
+        <Switch value={usePhoneAsAccountNumber} onValueChange={setUsePhoneAsAccountNumber} />
+      </View>
       {error && <ThemedText style={styles.error}>{(error as Error).message}</ThemedText>}
-      {isLoading ? (
+      {isPending ? (
         <ActivityIndicator color={colors.accent} />
       ) : (
         <GradientButton
@@ -79,7 +89,8 @@ export const RegisterScreen: React.FC = () => {
               username,
               firstName,
               lastName,
-              password
+              password,
+              usePhoneAsAccountNumber
             })
           }
           style={{ marginTop: 10 }}
@@ -93,6 +104,19 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 18, gap: 12, justifyContent: 'center', backgroundColor: colors.bg },
   heading: { fontSize: 28, fontWeight: '800', marginBottom: 6, color: colors.textPrimary },
   sub: { color: colors.textSecondary, marginBottom: 12 },
+  switchRow: {
+    marginTop: 6,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center'
+  },
+  switchTitle: { fontWeight: '700', color: colors.textPrimary, marginBottom: 2 },
+  switchSub: { color: colors.textSecondary, fontSize: 12, lineHeight: 16 },
   input: {
     borderWidth: 1,
     borderColor: colors.border,

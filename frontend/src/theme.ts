@@ -10,7 +10,7 @@ export const colors = {
 };
 
 export const gradients = {
-  primary: [colors.primary, colors.accent]
+  primary: [colors.primary, colors.accent] as const
 };
 
 export const shadows = {

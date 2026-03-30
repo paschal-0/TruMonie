@@ -1,3 +1,4 @@
+import React from 'react';
 import { NavigationContainer, DefaultTheme, Theme } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';

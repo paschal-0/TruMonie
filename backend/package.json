@@ -15,8 +15,15 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,js,json}\"",
     "test": "jest --config jest.config.js",
     "qa:smoke:p0": "node ./scripts/qa/p0-smoke.mjs",
+    "qa:smoke:domain": "node ./scripts/qa/domain-batch-smoke.mjs",
     "qa:smoke:notifications": "node ./scripts/qa/notifications-smoke.mjs",
-    "qa:reconcile": "node ./scripts/qa/reconciliation-check.mjs"
+    "qa:smoke:security": "node ./scripts/qa/security-rbac-smoke.mjs",
+    "qa:smoke:reliability": "node ./scripts/qa/reliability-smoke.mjs",
+    "qa:load:baseline": "node ./scripts/qa/load-baseline.mjs",
+    "qa:bootstrap:system-accounts": "node ./scripts/qa/bootstrap-system-accounts.mjs",
+    "qa:seed:demo-user": "node ./scripts/qa/seed-demo-user.mjs",
+    "qa:reconcile": "node ./scripts/qa/reconciliation-check.mjs",
+    "qa:certify": "node ./scripts/qa/full-certification.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

@@ -78,10 +78,9 @@ async function request(method, path, options = {}) {
 }
 
 function randomNgPhone() {
-  const operatorDigits = ['70', '80', '81', '90', '91'];
-  const prefix = operatorDigits[Math.floor(Math.random() * operatorDigits.length)];
-  const rest = `${Math.floor(Math.random() * 10 ** 8)}`.padStart(8, '0');
-  return `+234${prefix}${rest}`;
+  // Uses known-valid NG E.164 pattern: +234803XXXXXXX
+  const rest = `${Math.floor(Math.random() * 10 ** 7)}`.padStart(7, '0');
+  return `+234803${rest}`;
 }
 
 function randomUser(tag) {
@@ -94,6 +93,14 @@ function randomUser(tag) {
     lastName: 'QA',
     password
   };
+}
+
+function deriveAccountFromPhone(phoneNumber) {
+  const digits = String(phoneNumber ?? '').replace(/\D/g, '');
+  if (/^0\d{10}$/.test(digits)) return digits.slice(1);
+  if (/^234\d{10}$/.test(digits)) return digits.slice(3);
+  if (/^\d{10}$/.test(digits)) return digits;
+  return null;
 }
 
 async function runStep(id, fn, options = {}) {
@@ -191,6 +198,14 @@ async function main() {
     return 'Authenticated profile returned';
   });
 
+  await runStep('AUTH-002B', async () => {
+    const response = await request('POST', '/auth/login', {
+      body: { identifier: userBInput.email, password }
+    });
+    context.userBToken = requireValue('userB login token', response?.tokens?.accessToken);
+    return 'User B login successful';
+  });
+
   await runStep('WALLET-001A', async () => {
     const wallets = await request('GET', '/wallets', { token: context.userAToken });
     if (!Array.isArray(wallets) || wallets.length === 0) {
@@ -198,6 +213,18 @@ async function main() {
     }
     context.userAWallet = wallets.find((w) => w.currency === currency) ?? wallets[0];
     requireValue('userA wallet id', context.userAWallet?.id);
+    const ngnWallet = wallets.find((w) => w.currency === 'NGN');
+    if (!ngnWallet?.accountNumber || !/^\d{10}$/.test(ngnWallet.accountNumber)) {
+      throw new Error(`Invalid NGN account number: ${JSON.stringify(ngnWallet)}`);
+    }
+    context.userANGNWallet = ngnWallet;
+    const expectedPhoneDerived = deriveAccountFromPhone(userAInput.phoneNumber);
+    const validSystemGenerated = ngnWallet.accountNumber.startsWith('34');
+    const validPhoneDerived =
+      expectedPhoneDerived !== null && ngnWallet.accountNumber === expectedPhoneDerived;
+    if (!validSystemGenerated && !validPhoneDerived) {
+      throw new Error(`Unexpected account number format: ${ngnWallet.accountNumber}`);
+    }
     return `User A wallet ${context.userAWallet.id} (${context.userAWallet.currency})`;
   });
 
@@ -209,6 +236,25 @@ async function main() {
     context.userBWallet = wallets.find((w) => w.currency === currency) ?? wallets[0];
     requireValue('userB wallet id', context.userBWallet?.id);
     return `User B wallet ${context.userBWallet.id} (${context.userBWallet.currency})`;
+  });
+
+  await runStep('WALLET-003', async () => {
+    const accountNumberPayload = await request('GET', '/wallets/account-number', {
+      token: context.userAToken
+    });
+    if (
+      !accountNumberPayload?.accountNumber ||
+      !/^\d{10}$/.test(accountNumberPayload.accountNumber)
+    ) {
+      throw new Error(`Invalid account-number payload: ${JSON.stringify(accountNumberPayload)}`);
+    }
+    const ngnWalletAccountNumber = context.userANGNWallet?.accountNumber ?? null;
+    if (ngnWalletAccountNumber && ngnWalletAccountNumber !== accountNumberPayload.accountNumber) {
+      throw new Error(
+        `Account-number mismatch wallets vs canonical endpoint: ${ngnWalletAccountNumber} vs ${accountNumberPayload.accountNumber}`
+      );
+    }
+    return `Canonical account number ${accountNumberPayload.accountNumber}`;
   });
 
   await runStep('WALLET-002', async () => {
@@ -329,6 +375,14 @@ async function main() {
       throw new Error(`Unexpected run-cycle response: ${JSON.stringify(run)}`);
     }
     return `Cycle result: ${run.status}`;
+  });
+
+  await runStep('AUTH-002A2', async () => {
+    const response = await request('POST', '/auth/login', {
+      body: { identifier: userAInput.email, password }
+    });
+    context.userAToken = requireValue('userA login token (post-cycle)', response?.tokens?.accessToken);
+    return 'User A re-login successful';
   });
 
   await runStep('AJO-010', async () => {
