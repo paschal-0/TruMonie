@@ -2,7 +2,7 @@ import { BadRequestException, Body, Controller, ForbiddenException, Post, UseGua
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { User , UserStatus } from '../users/entities/user.entity';
+import { User, UserStatus } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { AccountsService } from '../ledger/accounts.service';
 import { LedgerService } from '../ledger/ledger.service';
@@ -12,6 +12,7 @@ import { BankTransferDto } from './dto/bank-transfer.dto';
 import { Currency } from '../ledger/enums/currency.enum';
 import { PaymentsService } from './payments.service';
 import { VelocityService } from '../risk/velocity.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('payments')
@@ -22,7 +23,8 @@ export class TransfersController {
     private readonly ledgerService: LedgerService,
     private readonly limitsService: LimitsService,
     private readonly paymentsService: PaymentsService,
-    private readonly velocityService: VelocityService
+    private readonly velocityService: VelocityService,
+    private readonly notificationsService: NotificationsService
   ) {}
 
   @Post('p2p')
@@ -30,6 +32,7 @@ export class TransfersController {
     if (user.status === UserStatus.DISABLED) {
       throw new ForbiddenException('User is frozen');
     }
+    await this.usersService.assertValidTransactionPin(user.id, dto.pin);
     const senderWallet = await this.requireWallet(user.id, dto.currency);
     const recipient = await this.usersService.findByIdentifier(dto.recipientIdentifier);
     if (!recipient) {
@@ -49,7 +52,7 @@ export class TransfersController {
       dto.currency
     );
 
-    return this.ledgerService.transfer({
+    const entry = await this.ledgerService.transfer({
       sourceAccountId: senderWallet.id,
       destinationAccountId: recipientWallet.id,
       amountMinor: dto.amountMinor.toString(),
@@ -57,6 +60,17 @@ export class TransfersController {
       description: dto.description ?? `P2P to ${recipient.username ?? recipient.email}`,
       idempotencyKey: dto.idempotencyKey
     });
+    await this.notificationsService.send(
+      user.id,
+      'TRANSFER_OUT',
+      `Sent ${dto.amountMinor} ${dto.currency} to ${recipient.username ?? recipient.email}`
+    );
+    await this.notificationsService.send(
+      recipient.id,
+      'TRANSFER_IN',
+      `Received ${dto.amountMinor} ${dto.currency} from ${user.username ?? user.email}`
+    );
+    return entry;
   }
 
   @Post('bank-transfer')
@@ -64,6 +78,7 @@ export class TransfersController {
     if (user.status === UserStatus.DISABLED) {
       throw new ForbiddenException('User is frozen');
     }
+    await this.usersService.assertValidTransactionPin(user.id, dto.pin);
     const senderWallet = await this.requireWallet(user.id, dto.currency);
     await this.velocityService.assertWithinLimits(
       user.id,
@@ -78,7 +93,7 @@ export class TransfersController {
     );
 
     const provider = dto.provider ?? this.paymentsService.getDefaultProviderName();
-    return this.paymentsService.initiatePayout(
+    const payout = await this.paymentsService.initiatePayout(
       provider,
       user.id,
       senderWallet.id,
@@ -91,6 +106,12 @@ export class TransfersController {
       },
       dto.narration
     );
+    await this.notificationsService.send(
+      user.id,
+      'BANK_TRANSFER',
+      `Bank transfer ${dto.amountMinor} ${dto.currency} initiated to ${dto.accountNumber}`
+    );
+    return payout;
   }
 
   private async requireWallet(userId: string, currency: Currency) {

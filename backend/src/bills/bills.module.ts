@@ -10,9 +10,11 @@ import { BillBeneficiary } from './entities/bill-beneficiary.entity';
 import { LedgerModule } from '../ledger/ledger.module';
 import { BILLS_PROVIDER } from './bills.constants';
 import { LicensedBillsProvider } from './providers/licensed-bills.provider';
+import { UsersModule } from '../users/users.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [LedgerModule, TypeOrmModule.forFeature([BillPayment, BillBeneficiary])],
+  imports: [LedgerModule, UsersModule, NotificationsModule, TypeOrmModule.forFeature([BillPayment, BillBeneficiary])],
   controllers: [BillsController],
   providers: [
     BillsService,

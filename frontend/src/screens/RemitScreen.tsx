@@ -7,6 +7,7 @@ import { useRemitInbound, useRemitOutbound } from '../hooks/useMutations';
 import { GlassCard } from '../components/GlassCard';
 import { GradientButton } from '../components/GradientButton';
 import { colors, radius } from '../theme';
+import { useSetTransactionPin, useTransactionPinStatus } from '../hooks/useTransactionPin';
 
 const countries = ['GH', 'US', 'UK', 'KE', 'ZA'];
 const etas = ['Instant', '~2 mins', '~5 mins'];
@@ -15,6 +16,8 @@ export const RemitScreen: React.FC = () => {
   const { session } = useAuth();
   const outbound = useRemitOutbound(session?.accessToken);
   const inbound = useRemitInbound(session?.accessToken);
+  const { data: pinStatus } = useTransactionPinStatus(session?.accessToken);
+  const setPinMutation = useSetTransactionPin(session?.accessToken);
 
   const [outForm, setOutForm] = useState({
     country: '',
@@ -24,8 +27,10 @@ export const RemitScreen: React.FC = () => {
     provider: '',
     narration: '',
     amountMinor: '',
-    currency: 'NGN'
+    currency: 'NGN',
+    pin: ''
   });
+  const [pinSetup, setPinSetup] = useState('');
 
   const [inForm, setInForm] = useState({
     provider: '',
@@ -52,18 +57,45 @@ export const RemitScreen: React.FC = () => {
       Alert.alert('Validation', 'Amount must be a positive number.');
       return;
     }
-    outbound.mutate({
-      amountMinor,
-      currency: outForm.currency,
-      provider: outForm.provider || undefined,
-      narration: outForm.narration || undefined,
-      destination: {
-        country: outForm.country.trim(),
-        bankCode: outForm.bankCode.trim(),
-        accountNumber: outForm.accountNumber.trim(),
-        accountName: outForm.accountName || undefined
+    if (!pinStatus?.hasTransactionPin) {
+      Alert.alert('Transaction PIN Required', 'Create your 4-digit transaction PIN first.');
+      return;
+    }
+    if (!/^\d{4}$/.test(outForm.pin)) {
+      Alert.alert('Validation', 'Enter your 4-digit transaction PIN.');
+      return;
+    }
+    outbound.mutate(
+      {
+        amountMinor,
+        currency: outForm.currency,
+        provider: outForm.provider || undefined,
+        narration: outForm.narration || undefined,
+        destination: {
+          country: outForm.country.trim(),
+          bankCode: outForm.bankCode.trim(),
+          accountNumber: outForm.accountNumber.trim(),
+          accountName: outForm.accountName || undefined
+        },
+        pin: outForm.pin
+      },
+      {
+        onSuccess: () => {
+          Alert.alert('Success', 'Outbound remittance submitted.');
+          setOutForm({
+            country: '',
+            bankCode: '',
+            accountNumber: '',
+            accountName: '',
+            provider: '',
+            narration: '',
+            amountMinor: '',
+            currency: 'NGN',
+            pin: ''
+          });
+        }
       }
-    });
+    );
   };
 
   const onInbound = () => {
@@ -98,6 +130,36 @@ export const RemitScreen: React.FC = () => {
 
       <GlassCard style={{ marginTop: 16 }}>
         <ThemedText style={styles.sectionTitle}>Outbound (Send Abroad)</ThemedText>
+        {!pinStatus?.hasTransactionPin ? (
+          <View style={{ marginBottom: 10 }}>
+            <ThemedText style={styles.error}>Transaction PIN not set.</ThemedText>
+            <TextInput
+              style={styles.input}
+              placeholder="Create 4-digit PIN"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="number-pad"
+              secureTextEntry
+              maxLength={4}
+              value={pinSetup}
+              onChangeText={setPinSetup}
+            />
+            {setPinMutation.isPending ? (
+              <ActivityIndicator color={colors.accent} />
+            ) : (
+              <GradientButton
+                title="Create PIN"
+                onPress={() => {
+                  if (!/^\d{4}$/.test(pinSetup)) {
+                    Alert.alert('Validation', 'PIN must be exactly 4 digits.');
+                    return;
+                  }
+                  setPinMutation.mutate({ pin: pinSetup }, { onSuccess: () => setPinSetup('') });
+                }}
+                style={{ marginTop: 8 }}
+              />
+            )}
+          </View>
+        ) : null}
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
             <ThemedText style={styles.label}>Destination country</ThemedText>
@@ -182,6 +244,17 @@ export const RemitScreen: React.FC = () => {
           placeholderTextColor={colors.textSecondary}
           value={outForm.narration}
           onChangeText={(t) => setOutForm({ ...outForm, narration: t })}
+        />
+        <ThemedText style={styles.label}>Transaction PIN</ThemedText>
+        <TextInput
+          style={styles.input}
+          placeholder="4-digit PIN"
+          placeholderTextColor={colors.textSecondary}
+          keyboardType="number-pad"
+          secureTextEntry
+          maxLength={4}
+          value={outForm.pin}
+          onChangeText={(t) => setOutForm({ ...outForm, pin: t })}
         />
         {outbound.error && <ThemedText style={styles.error}>{(outbound.error as Error).message}</ThemedText>}
         {outbound.isPending ? (

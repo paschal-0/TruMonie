@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as argon2 from 'argon2';
 import { Repository } from 'typeorm';
@@ -76,6 +76,14 @@ export class UsersService {
       .getOne();
   }
 
+  async findByIdWithSecrets(id: string): Promise<User | null> {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .addSelect(['user.passwordHash', 'user.pinHash'])
+      .where('user.id = :id', { id })
+      .getOne();
+  }
+
   async updateLastLogin(userId: string): Promise<void> {
     await this.userRepository.update({ id: userId }, { lastLoginAt: new Date() });
   }
@@ -94,6 +102,46 @@ export class UsersService {
 
   async updateStatus(userId: string, status: UserStatus) {
     await this.userRepository.update({ id: userId }, { status });
+  }
+
+  async hasTransactionPin(userId: string): Promise<boolean> {
+    const user = await this.findByIdWithSecrets(userId);
+    return Boolean(user?.pinHash);
+  }
+
+  async assertValidTransactionPin(userId: string, pin: string) {
+    const user = await this.findByIdWithSecrets(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    if (!user.pinHash) {
+      throw new BadRequestException('Transaction PIN not set. Please create one first.');
+    }
+    const valid = await this.verifySecret(user.pinHash, pin);
+    if (!valid) {
+      throw new UnauthorizedException('Invalid transaction PIN');
+    }
+  }
+
+  async setTransactionPin(userId: string, pin: string, currentPin?: string) {
+    const user = await this.findByIdWithSecrets(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    if (user.pinHash) {
+      if (!currentPin) {
+        throw new BadRequestException('Current PIN is required to change transaction PIN');
+      }
+      const validCurrentPin = await this.verifySecret(user.pinHash, currentPin);
+      if (!validCurrentPin) {
+        throw new UnauthorizedException('Current PIN is invalid');
+      }
+    }
+
+    const pinHash = await this.hashSecret(pin);
+    await this.userRepository.update({ id: userId }, { pinHash });
+    return { hasTransactionPin: true };
   }
 
   private hashSecret(secret: string): Promise<string> {

@@ -13,8 +13,18 @@ import { useWallets } from '../hooks/useWallets';
 import { useWalletStatement } from '../hooks/useWalletStatement';
 import { useSavingsVaults } from '../hooks/useSavingsVaults';
 import { useProfile } from '../hooks/useProfile';
+import { useNotificationUnreadCount } from '../hooks/useNotifications';
 
-type NavTargets = 'Wallet' | 'Bills' | 'Ajo' | 'Savings' | 'FX' | 'Remit' | 'Cards' | 'Settings';
+type NavTargets =
+  | 'Wallet'
+  | 'Bills'
+  | 'Ajo'
+  | 'Savings'
+  | 'FX'
+  | 'Remit'
+  | 'Cards'
+  | 'Settings'
+  | 'Notifications';
 type GradientPair = readonly [string, string];
 
 const actions: { label: string; target: NavTargets; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -60,6 +70,7 @@ export const HomeScreen: React.FC = () => {
   const { data: profile } = useProfile(session?.accessToken);
   const { data: wallets } = useWallets(session?.accessToken);
   const { data: vaults } = useSavingsVaults(session?.accessToken);
+  const { data: unread } = useNotificationUnreadCount(session?.accessToken);
 
   const ngnWallet = wallets?.find((wallet: any) => wallet.currency === 'NGN');
   const accountId = ngnWallet?.id ?? wallets?.[0]?.id;
@@ -105,10 +116,10 @@ export const HomeScreen: React.FC = () => {
           <ThemedText style={styles.greetingLabel}>Good evening,</ThemedText>
           <ThemedText style={styles.greetingName}>{displayName}</ThemedText>
         </View>
-        <View style={styles.bell}>
+        <TouchableOpacity style={styles.bell} onPress={() => navigation.navigate('Notifications' as never)}>
           <Ionicons name="notifications-outline" size={20} color={colors.textPrimary} />
-          <View style={styles.badge} />
-        </View>
+          {(unread?.count ?? 0) > 0 ? <View style={styles.badge} /> : null}
+        </TouchableOpacity>
       </View>
 
       <GlassCard style={styles.liquidityCard}>

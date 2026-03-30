@@ -8,6 +8,7 @@ import { useSavingsCreateVault, useSavingsDeposit, useSavingsWithdraw } from '..
 import { GlassCard } from '../components/GlassCard';
 import { GradientButton } from '../components/GradientButton';
 import { colors, radius } from '../theme';
+import { useSetTransactionPin, useTransactionPinStatus } from '../hooks/useTransactionPin';
 
 function toPositiveInt(value: string) {
   const parsed = Number(value);
@@ -21,8 +22,12 @@ export const SavingsScreen: React.FC = () => {
   const createVault = useSavingsCreateVault(session?.accessToken);
   const deposit = useSavingsDeposit(session?.accessToken);
   const withdraw = useSavingsWithdraw(session?.accessToken);
+  const { data: pinStatus } = useTransactionPinStatus(session?.accessToken);
+  const setPinMutation = useSetTransactionPin(session?.accessToken);
 
   const [amount, setAmount] = useState('0');
+  const [pin, setPin] = useState('');
+  const [pinSetup, setPinSetup] = useState('');
   const [selectedVaultId, setSelectedVaultId] = useState('');
   const [newVaultName, setNewVaultName] = useState('');
   const [newVaultTarget, setNewVaultTarget] = useState('');
@@ -59,16 +64,34 @@ export const SavingsScreen: React.FC = () => {
       Alert.alert('Validation', 'Select a vault first.');
       return;
     }
+    if (!pinStatus?.hasTransactionPin) {
+      Alert.alert('Transaction PIN Required', 'Create your 4-digit transaction PIN first.');
+      return;
+    }
+    if (!/^\d{4}$/.test(pin)) {
+      Alert.alert('Validation', 'Enter your 4-digit transaction PIN.');
+      return;
+    }
     if (!amountMinor) {
       Alert.alert('Validation', 'Amount must be a positive number.');
       return;
     }
-    deposit.mutate({
-      vaultId: selectedVaultId,
-      currency: 'NGN',
-      amountMinor,
-      reference: `dep-${Date.now()}`
-    });
+    deposit.mutate(
+      {
+        vaultId: selectedVaultId,
+        currency: 'NGN',
+        amountMinor,
+        reference: `dep-${Date.now()}`,
+        pin
+      },
+      {
+        onSuccess: () => {
+          Alert.alert('Success', 'Savings deposit completed.');
+          setAmount('0');
+          setPin('');
+        }
+      }
+    );
   };
 
   const onWithdraw = () => {
@@ -77,16 +100,34 @@ export const SavingsScreen: React.FC = () => {
       Alert.alert('Validation', 'Select a vault first.');
       return;
     }
+    if (!pinStatus?.hasTransactionPin) {
+      Alert.alert('Transaction PIN Required', 'Create your 4-digit transaction PIN first.');
+      return;
+    }
+    if (!/^\d{4}$/.test(pin)) {
+      Alert.alert('Validation', 'Enter your 4-digit transaction PIN.');
+      return;
+    }
     if (!amountMinor) {
       Alert.alert('Validation', 'Amount must be a positive number.');
       return;
     }
-    withdraw.mutate({
-      vaultId: selectedVaultId,
-      currency: 'NGN',
-      amountMinor,
-      reference: `wd-${Date.now()}`
-    });
+    withdraw.mutate(
+      {
+        vaultId: selectedVaultId,
+        currency: 'NGN',
+        amountMinor,
+        reference: `wd-${Date.now()}`,
+        pin
+      },
+      {
+        onSuccess: () => {
+          Alert.alert('Success', 'Savings withdrawal completed.');
+          setAmount('0');
+          setPin('');
+        }
+      }
+    );
   };
 
   return (
@@ -163,6 +204,36 @@ export const SavingsScreen: React.FC = () => {
         <ThemedText style={styles.muted}>
           Selected vault: {selectedVault ? selectedVault.name : 'None'}
         </ThemedText>
+        {!pinStatus?.hasTransactionPin ? (
+          <View style={{ marginTop: 10 }}>
+            <ThemedText style={styles.error}>Transaction PIN not set.</ThemedText>
+            <TextInput
+              style={styles.input}
+              placeholder="Create 4-digit PIN"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="number-pad"
+              secureTextEntry
+              maxLength={4}
+              value={pinSetup}
+              onChangeText={setPinSetup}
+            />
+            {setPinMutation.isPending ? (
+              <ActivityIndicator color={colors.accent} />
+            ) : (
+              <GradientButton
+                title="Create PIN"
+                onPress={() => {
+                  if (!/^\d{4}$/.test(pinSetup)) {
+                    Alert.alert('Validation', 'PIN must be exactly 4 digits.');
+                    return;
+                  }
+                  setPinMutation.mutate({ pin: pinSetup }, { onSuccess: () => setPinSetup('') });
+                }}
+                style={{ marginTop: 10 }}
+              />
+            )}
+          </View>
+        ) : null}
         <ThemedText style={styles.label}>Amount (minor)</ThemedText>
         <TextInput
           style={styles.input}
@@ -171,6 +242,17 @@ export const SavingsScreen: React.FC = () => {
           keyboardType="number-pad"
           value={amount}
           onChangeText={setAmount}
+        />
+        <ThemedText style={styles.label}>Transaction PIN</ThemedText>
+        <TextInput
+          style={styles.input}
+          placeholder="4-digit PIN"
+          placeholderTextColor={colors.textSecondary}
+          keyboardType="number-pad"
+          secureTextEntry
+          maxLength={4}
+          value={pin}
+          onChangeText={setPin}
         />
         <View style={styles.btnRow}>
           {deposit.isPending ? (

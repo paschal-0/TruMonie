@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View, Image } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, TextInput, View, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '../components/Themed';
@@ -10,6 +10,7 @@ import { useFxConvert, useFxQuote } from '../hooks/useMutations';
 import { useAuth } from '../providers/AuthProvider';
 import { Currency } from '../types';
 import { colors, radius } from '../theme';
+import { useSetTransactionPin, useTransactionPinStatus } from '../hooks/useTransactionPin';
 
 export const FxScreen: React.FC = () => {
   const base: Currency = 'USD';
@@ -17,8 +18,12 @@ export const FxScreen: React.FC = () => {
   const [amount, setAmount] = useState('1000');
   const { data } = useFxRate(base, quote);
   const { session } = useAuth();
+  const { data: pinStatus } = useTransactionPinStatus(session?.accessToken);
+  const setPinMutation = useSetTransactionPin(session?.accessToken);
   const quoteMutation = useFxQuote(session?.accessToken);
   const convertMutation = useFxConvert(session?.accessToken);
+  const [pin, setPin] = useState('');
+  const [pinSetup, setPinSetup] = useState('');
 
   const rate = data?.rate ?? 0;
   const receiveAmount = rate * Number(amount || 0);
@@ -27,6 +32,14 @@ export const FxScreen: React.FC = () => {
   const onPreviewExchange = async () => {
     const normalizedAmount = Number(amount);
     if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) return;
+    if (!pinStatus?.hasTransactionPin) {
+      Alert.alert('Transaction PIN Required', 'Create your 4-digit transaction PIN first.');
+      return;
+    }
+    if (!/^\d{4}$/.test(pin)) {
+      Alert.alert('Validation', 'Enter your 4-digit transaction PIN.');
+      return;
+    }
 
     const fxQuote = await quoteMutation.mutateAsync({
       base,
@@ -38,8 +51,11 @@ export const FxScreen: React.FC = () => {
       quoteId: fxQuote.id,
       base,
       quote,
-      amountMinor: normalizedAmount
+      amountMinor: normalizedAmount,
+      pin
     });
+    Alert.alert('Success', 'FX conversion completed.');
+    setPin('');
   };
 
   return (
@@ -110,6 +126,36 @@ export const FxScreen: React.FC = () => {
       </GlassCard>
 
       <GlassCard style={styles.metaCard}>
+        {!pinStatus?.hasTransactionPin ? (
+          <View style={{ marginBottom: 8 }}>
+            <ThemedText style={styles.error}>Transaction PIN not set.</ThemedText>
+            <TextInput
+              style={styles.pinInput}
+              placeholder="Create 4-digit PIN"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="number-pad"
+              secureTextEntry
+              maxLength={4}
+              value={pinSetup}
+              onChangeText={setPinSetup}
+            />
+            {setPinMutation.isPending ? (
+              <ActivityIndicator color={colors.accent} />
+            ) : (
+              <GradientButton
+                title="Create PIN"
+                onPress={() => {
+                  if (!/^\d{4}$/.test(pinSetup)) {
+                    Alert.alert('Validation', 'PIN must be exactly 4 digits.');
+                    return;
+                  }
+                  setPinMutation.mutate({ pin: pinSetup }, { onSuccess: () => setPinSetup('') });
+                }}
+                style={{ marginTop: 8 }}
+              />
+            )}
+          </View>
+        ) : null}
         <View style={styles.metaRow}>
           <ThemedText style={styles.metaLabel}>Rate</ThemedText>
           <ThemedText style={styles.metaValue}>
@@ -131,6 +177,19 @@ export const FxScreen: React.FC = () => {
         <View style={styles.metaRow}>
           <ThemedText style={styles.metaLabel}>Execution Time</ThemedText>
           <ThemedText style={styles.metaValue}>~ 2 Seconds</ThemedText>
+        </View>
+        <View style={styles.metaRow}>
+          <ThemedText style={styles.metaLabel}>Transaction PIN</ThemedText>
+          <TextInput
+            style={styles.pinInput}
+            placeholder="4-digit PIN"
+            placeholderTextColor={colors.textSecondary}
+            keyboardType="number-pad"
+            secureTextEntry
+            maxLength={4}
+            value={pin}
+            onChangeText={setPin}
+          />
         </View>
       </GlassCard>
 
@@ -221,5 +280,14 @@ const styles = StyleSheet.create({
   metaValue: { color: colors.textPrimary, fontWeight: '700' },
   cta: { marginTop: 18, marginBottom: 12 },
   footerNote: { textAlign: 'center', color: colors.textSecondary, marginTop: 4 },
-  error: { color: 'tomato', marginTop: 8 }
+  error: { color: 'tomato', marginTop: 8 },
+  pinInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 10,
+    color: colors.textPrimary,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    minWidth: 120
+  }
 });

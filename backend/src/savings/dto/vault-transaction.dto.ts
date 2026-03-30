@@ -1,4 +1,4 @@
-import { IsEnum, IsPositive, IsString, IsUUID } from 'class-validator';
+import { IsEnum, IsPositive, IsString, IsUUID, Matches } from 'class-validator';
 
 import { Currency } from '../../ledger/enums/currency.enum';
 
@@ -14,4 +14,8 @@ export class VaultTransactionDto {
 
   @IsString()
   reference!: string;
+
+  @IsString()
+  @Matches(/^\d{4}$/)
+  pin!: string;
 }

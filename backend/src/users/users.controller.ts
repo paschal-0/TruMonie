@@ -14,6 +14,7 @@ import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { SetTransactionPinDto } from './dto/set-transaction-pin.dto';
 
 @Controller('users')
 export class UsersController {
@@ -22,6 +23,19 @@ export class UsersController {
   @Post()
   async create(@Body() dto: CreateUserDto): Promise<User> {
     return this.usersService.create(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/pin-status')
+  async pinStatus(@CurrentUser() requester: User) {
+    const hasTransactionPin = await this.usersService.hasTransactionPin(requester.id);
+    return { hasTransactionPin };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/pin')
+  async setPin(@CurrentUser() requester: User, @Body() dto: SetTransactionPinDto) {
+    return this.usersService.setTransactionPin(requester.id, dto.pin, dto.currentPin);
   }
 
   @UseGuards(JwtAuthGuard)

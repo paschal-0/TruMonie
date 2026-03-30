@@ -10,6 +10,8 @@ interface FxQuoteResponse {
 function invalidateWalletViews(queryClient: ReturnType<typeof useQueryClient>) {
   void queryClient.invalidateQueries({ queryKey: ['wallets'] });
   void queryClient.invalidateQueries({ queryKey: ['wallets', 'account-number'] });
+  void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+  void queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
 }
 
 export const useP2PTransfer = (token?: string) => {

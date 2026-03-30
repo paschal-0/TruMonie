@@ -17,6 +17,7 @@ import { UsersModule } from '../users/users.module';
 import { RiskModule } from '../risk/risk.module';
 import { PAYMENT_PROVIDERS } from './payments.constants';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
     LimitsModule,
     UsersModule,
     RiskModule,
+    NotificationsModule,
     TypeOrmModule.forFeature([Payout, FundingTransaction, WebhookEvent])
   ],
   controllers: [PaymentsController, TransfersController],

@@ -22,6 +22,7 @@ import { BillBeneficiary } from './src/bills/entities/bill-beneficiary.entity';
 import { SavingsVault } from './src/savings/entities/savings-vault.entity';
 import { SavingsTransaction } from './src/savings/entities/savings-transaction.entity';
 import { Card } from './src/cards/entities/card.entity';
+import { Notification } from './src/notifications/entities/notification.entity';
 
 dotenv.config();
 const config = configuration();
@@ -53,7 +54,8 @@ const dataSource = new DataSource({
     BillBeneficiary,
     SavingsVault,
     SavingsTransaction,
-    Card
+    Card,
+    Notification
   ],
   migrations: ['src/migrations/*.ts'],
   namingStrategy: undefined, // handled in entities; keep default for migrations

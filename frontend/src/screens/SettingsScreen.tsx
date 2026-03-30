@@ -1,12 +1,30 @@
-import React, { useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { Ionicons } from '@expo/vector-icons';
+
 import { ThemedText } from '../components/Themed';
 import { useAuth } from '../providers/AuthProvider';
 import { GlassCard } from '../components/GlassCard';
 import { GradientButton } from '../components/GradientButton';
 import { colors, radius } from '../theme';
 import { useProfile } from '../hooks/useProfile';
+import { useSetTransactionPin, useTransactionPinStatus } from '../hooks/useTransactionPin';
+import {
+  getBiometricTransactionsEnabled,
+  saveTransactionPinLocally,
+  setBiometricTransactionsEnabled
+} from '../lib/transactionAuth';
 
 const avatarUri = 'https://i.pravatar.cc/200?img=47';
 
@@ -29,15 +47,90 @@ const Row: React.FC<{
   </TouchableOpacity>
 );
 
+const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+  <View style={{ marginTop: 20 }}>
+    <ThemedText style={styles.sectionHeading}>{title}</ThemedText>
+    <GlassCard style={{ marginTop: 10, paddingHorizontal: 0 }}>{children}</GlassCard>
+  </View>
+);
+
 export const SettingsScreen: React.FC = () => {
   const { session, logout } = useAuth();
   const { data: profile } = useProfile(session?.accessToken);
+  const { data: pinStatus } = useTransactionPinStatus(session?.accessToken);
+  const setPinMutation = useSetTransactionPin(session?.accessToken);
+
   const [faceId, setFaceId] = useState(true);
   const [push, setPush] = useState(true);
   const [email, setEmail] = useState(false);
+  const [showPinForm, setShowPinForm] = useState(false);
+  const [newPin, setNewPin] = useState('');
+  const [currentPin, setCurrentPin] = useState('');
+  const [biometricSupported, setBiometricSupported] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+
   const displayName =
     `${profile?.firstName ?? ''} ${profile?.lastName ?? ''}`.trim() || profile?.username || 'TruMoni User';
   const memberLabel = profile?.email || profile?.phoneNumber || 'Secure banking profile';
+
+  useEffect(() => {
+    const loadBiometricState = async () => {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      const supported = hasHardware && enrolled;
+      setBiometricSupported(supported);
+      const enabled = await getBiometricTransactionsEnabled();
+      setBiometricEnabled(Boolean(enabled && supported));
+    };
+    void loadBiometricState();
+  }, []);
+
+  const onToggleBiometric = async (value: boolean) => {
+    if (value) {
+      if (!biometricSupported) {
+        Alert.alert(
+          'Biometric Unavailable',
+          'Biometric authentication is not set up on this device.'
+        );
+        return;
+      }
+      const auth = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Enable biometric transaction approvals'
+      });
+      if (!auth.success) return;
+    }
+    setBiometricEnabled(value);
+    await setBiometricTransactionsEnabled(value);
+  };
+
+  const onSavePin = () => {
+    if (!/^\d{4}$/.test(newPin)) {
+      Alert.alert('Validation', 'PIN must be exactly 4 digits.');
+      return;
+    }
+
+    if (pinStatus?.hasTransactionPin && !/^\d{4}$/.test(currentPin)) {
+      Alert.alert('Validation', 'Enter your current 4-digit PIN to change it.');
+      return;
+    }
+
+    setPinMutation.mutate(
+      {
+        pin: newPin,
+        currentPin: pinStatus?.hasTransactionPin ? currentPin : undefined
+      },
+      {
+        onSuccess: async () => {
+          await saveTransactionPinLocally(newPin);
+          Alert.alert('Success', 'Transaction PIN saved.');
+          setNewPin('');
+          setCurrentPin('');
+          setShowPinForm(false);
+        }
+      }
+    );
+  };
+
   const comingSoon = (feature: string) => {
     Alert.alert('Coming Soon', `${feature} will be available in the next release.`);
   };
@@ -55,7 +148,11 @@ export const SettingsScreen: React.FC = () => {
         </View>
         <ThemedText style={styles.name}>{displayName}</ThemedText>
         <ThemedText style={styles.member}>{memberLabel}</ThemedText>
-        <GradientButton title="Edit Profile" onPress={() => comingSoon('Profile edit')} style={{ marginTop: 10, width: 180 }} />
+        <GradientButton
+          title="Edit Profile"
+          onPress={() => comingSoon('Profile edit')}
+          style={{ marginTop: 10, width: 180 }}
+        />
       </View>
 
       <Section title="Security">
@@ -63,28 +160,128 @@ export const SettingsScreen: React.FC = () => {
           icon="finger-print"
           title="Face ID Login"
           subtitle="Secure access"
-          right={<Switch value={faceId} onValueChange={setFaceId} thumbColor="#fff" trackColor={{ true: colors.accent, false: '#4b5563' }} />}
+          right={
+            <Switch
+              value={faceId}
+              onValueChange={setFaceId}
+              thumbColor="#fff"
+              trackColor={{ true: colors.accent, false: '#4b5563' }}
+            />
+          }
         />
-        <Row icon="lock-closed" title="Change PIN" onPress={() => comingSoon('PIN management')} />
-        <Row icon="laptop" title="Trusted Devices" subtitle="Device management" onPress={() => comingSoon('Trusted devices')} />
+        <Row
+          icon="shield-checkmark"
+          title="Biometric Transaction Approval"
+          subtitle={
+            biometricSupported
+              ? 'Approve transactions with fingerprint/face'
+              : 'Biometric unavailable on this device'
+          }
+          right={
+            <Switch
+              value={biometricEnabled}
+              onValueChange={(value) => void onToggleBiometric(value)}
+              thumbColor="#fff"
+              trackColor={{ true: colors.accent, false: '#4b5563' }}
+            />
+          }
+        />
+        <Row
+          icon="lock-closed"
+          title={pinStatus?.hasTransactionPin ? 'Change Transaction PIN' : 'Create Transaction PIN'}
+          subtitle={pinStatus?.hasTransactionPin ? 'PIN is set' : 'Required for transfers and payments'}
+          onPress={() => setShowPinForm((prev) => !prev)}
+        />
+        {showPinForm ? (
+          <View style={styles.pinForm}>
+            {pinStatus?.hasTransactionPin ? (
+              <>
+                <ThemedText style={styles.rowSub}>Current PIN</ThemedText>
+                <TextInput
+                  style={styles.input}
+                  keyboardType="number-pad"
+                  secureTextEntry
+                  maxLength={4}
+                  value={currentPin}
+                  onChangeText={setCurrentPin}
+                  placeholder="Current 4-digit PIN"
+                  placeholderTextColor={colors.textSecondary}
+                />
+              </>
+            ) : null}
+            <ThemedText style={styles.rowSub}>{pinStatus?.hasTransactionPin ? 'New PIN' : 'PIN'}</ThemedText>
+            <TextInput
+              style={styles.input}
+              keyboardType="number-pad"
+              secureTextEntry
+              maxLength={4}
+              value={newPin}
+              onChangeText={setNewPin}
+              placeholder="4-digit PIN"
+              placeholderTextColor={colors.textSecondary}
+            />
+            {setPinMutation.isError ? (
+              <ThemedText style={styles.errorText}>{(setPinMutation.error as Error).message}</ThemedText>
+            ) : null}
+            {setPinMutation.isPending ? (
+              <ActivityIndicator color={colors.accent} />
+            ) : (
+              <GradientButton
+                title={pinStatus?.hasTransactionPin ? 'Update PIN' : 'Create PIN'}
+                onPress={onSavePin}
+                style={{ marginTop: 10 }}
+              />
+            )}
+          </View>
+        ) : null}
+        <Row
+          icon="laptop"
+          title="Trusted Devices"
+          subtitle="Device management"
+          onPress={() => comingSoon('Trusted devices')}
+        />
       </Section>
 
       <Section title="Notifications">
         <Row
           icon="notifications"
           title="Push Notifications"
-          right={<Switch value={push} onValueChange={setPush} thumbColor="#fff" trackColor={{ true: colors.accent, false: '#4b5563' }} />}
+          right={
+            <Switch
+              value={push}
+              onValueChange={setPush}
+              thumbColor="#fff"
+              trackColor={{ true: colors.accent, false: '#4b5563' }}
+            />
+          }
         />
         <Row
           icon="mail"
           title="Email Alerts"
-          right={<Switch value={email} onValueChange={setEmail} thumbColor="#fff" trackColor={{ true: colors.accent, false: '#4b5563' }} />}
+          right={
+            <Switch
+              value={email}
+              onValueChange={setEmail}
+              thumbColor="#fff"
+              trackColor={{ true: colors.accent, false: '#4b5563' }}
+            />
+          }
         />
       </Section>
 
       <Section title="Preferences">
-        <Row icon="cash-outline" title="Currency" subtitle="NGN (\u20A6)" onPress={() => comingSoon('Currency preferences')} />
-        <Row icon="language" title="Language" subtitle="English" onPress={() => comingSoon('Language preferences')} />
+        <Row
+          icon="cash-outline"
+          title="Currency"
+          subtitle="NGN (\u20A6)"
+          onPress={() => comingSoon('Currency preferences')}
+        />
+        <Row
+          icon="language"
+          title="Language"
+          subtitle="English"
+          onPress={() => comingSoon('Language preferences')}
+        />
       </Section>
 
       <Section title="Support & Legal">
@@ -102,18 +299,15 @@ export const SettingsScreen: React.FC = () => {
   );
 };
 
-const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <View style={{ marginTop: 20 }}>
-    <ThemedText style={styles.sectionHeading}>{title}</ThemedText>
-    <GlassCard style={{ marginTop: 10, paddingHorizontal: 0 }}>
-      {children}
-    </GlassCard>
-  </View>
-);
-
 const styles = StyleSheet.create({
   container: { padding: 18, gap: 12, backgroundColor: colors.bg },
-  heading: { fontSize: 24, fontWeight: '800', color: colors.textPrimary, textAlign: 'center', marginBottom: 4 },
+  heading: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: 4
+  },
   profileWrap: { alignItems: 'center', marginVertical: 12 },
   avatarGlow: {
     width: 96,
@@ -158,16 +352,25 @@ const styles = StyleSheet.create({
   },
   rowTitle: { fontWeight: '800', fontSize: 14 },
   rowSub: { color: colors.textSecondary, fontSize: 12 },
-  kicker: { color: colors.textSecondary, fontSize: 13 },
-  big: { fontSize: 18, fontWeight: '800', marginTop: 4 },
-  heroIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center'
+  pinForm: {
+    marginHorizontal: 14,
+    marginBottom: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255,255,255,0.04)'
   },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 12,
+    color: colors.textPrimary,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginTop: 6
+  },
+  errorText: { color: 'tomato', marginTop: 8 },
   build: { color: colors.textSecondary, textAlign: 'center', marginVertical: 12 },
   logout: {
     marginTop: 6,

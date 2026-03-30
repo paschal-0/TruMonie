@@ -15,6 +15,7 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { BillsScreen } from '../screens/BillsScreen';
 import { SavingsScreen } from '../screens/SavingsScreen';
 import { FxScreen } from '../screens/FxScreen';
+import { NotificationsScreen } from '../screens/NotificationsScreen';
 
 const Tab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
@@ -62,6 +63,7 @@ export function AppNavigator() {
           <RootStack.Screen name="Bills" component={BillsScreen} />
           <RootStack.Screen name="Savings" component={SavingsScreen} />
           <RootStack.Screen name="FX" component={FxScreen} />
+          <RootStack.Screen name="Notifications" component={NotificationsScreen} />
         </>
       ) : (
         <>

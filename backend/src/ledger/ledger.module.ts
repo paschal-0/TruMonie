@@ -9,9 +9,11 @@ import { JournalLine } from './entities/journal-line.entity';
 import { AccountsService } from './accounts.service';
 import { WalletsController } from './wallets.controller';
 import { AccountsPolicy } from './accounts.policy';
+import { UsersModule } from '../users/users.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Account, JournalEntry, JournalLine])],
+  imports: [TypeOrmModule.forFeature([Account, JournalEntry, JournalLine]), UsersModule, NotificationsModule],
   providers: [LedgerService, AccountsService, AccountsPolicy],
   controllers: [LedgerController, WalletsController],
   exports: [LedgerService, AccountsService, AccountsPolicy]

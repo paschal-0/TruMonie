@@ -9,6 +9,7 @@ import { GlassCard } from '../components/GlassCard';
 import { GradientButton } from '../components/GradientButton';
 import { colors, radius } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
+import { useSetTransactionPin, useTransactionPinStatus } from '../hooks/useTransactionPin';
 
 const shortcuts = [
   { label: 'Airtime', icon: 'phone-portrait' },
@@ -22,8 +23,11 @@ export const BillsScreen: React.FC = () => {
   const { data: catalog, isLoading, isError } = useBillsCatalog();
   const { data: benes, isLoading: beneLoading } = useBillsBeneficiaries(session?.accessToken);
   const purchase = useBillPurchase(session?.accessToken);
+  const { data: pinStatus } = useTransactionPinStatus(session?.accessToken);
+  const setPinMutation = useSetTransactionPin(session?.accessToken);
   const saveBeneficiary = useBillsSaveBeneficiary(session?.accessToken);
-  const [form, setForm] = useState({ productCode: '', beneficiary: '', amountMinor: '' });
+  const [form, setForm] = useState({ productCode: '', beneficiary: '', amountMinor: '', pin: '' });
+  const [pinSetup, setPinSetup] = useState('');
   const [beneForm, setBeneForm] = useState({ productCode: '', destination: '', nickname: '' });
 
   const onSaveBeneficiary = () => {
@@ -60,12 +64,29 @@ export const BillsScreen: React.FC = () => {
       Alert.alert('Validation', 'Amount must be a positive number.');
       return;
     }
-    purchase.mutate({
-      productCode: form.productCode.trim(),
-      beneficiary: form.beneficiary.trim(),
-      amountMinor,
-      currency: 'NGN'
-    });
+    if (!pinStatus?.hasTransactionPin) {
+      Alert.alert('Transaction PIN Required', 'Create your 4-digit transaction PIN first.');
+      return;
+    }
+    if (!/^\d{4}$/.test(form.pin)) {
+      Alert.alert('Validation', 'Enter your 4-digit transaction PIN.');
+      return;
+    }
+    purchase.mutate(
+      {
+        productCode: form.productCode.trim(),
+        beneficiary: form.beneficiary.trim(),
+        amountMinor,
+        currency: 'NGN',
+        pin: form.pin
+      },
+      {
+        onSuccess: () => {
+          Alert.alert('Success', 'Bill payment completed.');
+          setForm({ productCode: '', beneficiary: '', amountMinor: '', pin: '' });
+        }
+      }
+    );
   };
 
   return (
@@ -165,6 +186,36 @@ export const BillsScreen: React.FC = () => {
 
       <GlassCard style={{ marginTop: 16, marginBottom: 16 }}>
         <ThemedText style={styles.sectionTitle}>Purchase</ThemedText>
+        {!pinStatus?.hasTransactionPin ? (
+          <View style={styles.pinNotice}>
+            <ThemedText style={styles.error}>Transaction PIN not set.</ThemedText>
+            <TextInput
+              style={styles.input}
+              placeholder="Create 4-digit PIN"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="number-pad"
+              secureTextEntry
+              maxLength={4}
+              value={pinSetup}
+              onChangeText={setPinSetup}
+            />
+            {setPinMutation.isPending ? (
+              <ActivityIndicator color={colors.accent} />
+            ) : (
+              <GradientButton
+                title="Create PIN"
+                onPress={() => {
+                  if (!/^\d{4}$/.test(pinSetup)) {
+                    Alert.alert('Validation', 'PIN must be exactly 4 digits.');
+                    return;
+                  }
+                  setPinMutation.mutate({ pin: pinSetup }, { onSuccess: () => setPinSetup('') });
+                }}
+                style={{ marginTop: 10 }}
+              />
+            )}
+          </View>
+        ) : null}
         <View style={styles.formGroup}>
           <ThemedText style={styles.label}>Product Code</ThemedText>
           <TextInput
@@ -208,6 +259,19 @@ export const BillsScreen: React.FC = () => {
             />
           </View>
         </View>
+        <View style={styles.formGroup}>
+          <ThemedText style={styles.label}>Transaction PIN</ThemedText>
+          <TextInput
+            style={styles.input}
+            placeholder="4-digit PIN"
+            placeholderTextColor={colors.textSecondary}
+            keyboardType="number-pad"
+            secureTextEntry
+            maxLength={4}
+            value={form.pin}
+            onChangeText={(t) => setForm({ ...form, pin: t })}
+          />
+        </View>
         {purchase.isPending ? (
           <ActivityIndicator color={colors.accent} />
         ) : (
@@ -231,6 +295,7 @@ const styles = StyleSheet.create({
   muted: { color: colors.textSecondary },
   line: { marginVertical: 4, fontWeight: '600' },
   shortcuts: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
+  pinNotice: { marginBottom: 6, gap: 6 },
   shortcutBtn: {
     width: '47%',
     borderRadius: radius.md,

@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   ValidateNested
 } from 'class-validator';
 
@@ -46,4 +47,8 @@ export class OutboundRemittanceDto {
   @IsOptional()
   @IsString()
   narration?: string;
+
+  @IsString()
+  @Matches(/^\d{4}$/)
+  pin!: string;
 }

@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsNumber, IsString, Matches } from 'class-validator';
 
 import { Currency } from '../../ledger/enums/currency.enum';
 
@@ -15,4 +15,8 @@ export class ConvertDto {
 
   @IsNumber()
   amountMinor!: number;
+
+  @IsString()
+  @Matches(/^\d{4}$/)
+  pin!: string;
 }

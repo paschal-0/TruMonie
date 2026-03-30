@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsPositive, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsPositive, IsString, Matches, MaxLength } from 'class-validator';
 
 import { Currency } from '../enums/currency.enum';
 
@@ -34,4 +34,9 @@ export class TransferDto {
   @IsString()
   @MaxLength(128)
   idempotencyKey?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d{4}$/)
+  pin!: string;
 }

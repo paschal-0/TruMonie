@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 
 import { Currency } from '../../ledger/enums/currency.enum';
 
@@ -21,4 +21,9 @@ export class PurchaseBillDto {
   @IsString()
   @MaxLength(255)
   description?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d{4}$/)
+  pin!: string;
 }
