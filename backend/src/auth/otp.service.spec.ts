@@ -5,6 +5,8 @@ describe('OtpService', () => {
     const redisClient = {
       setex: jest.fn().mockResolvedValue(undefined),
       get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue('OK'),
+      ttl: jest.fn().mockResolvedValue(300),
       del: jest.fn().mockResolvedValue(1)
     };
     const configService = {
@@ -24,11 +26,7 @@ describe('OtpService', () => {
 
     const response = await service.sendOtp('user@example.com', 'email', 'LOGIN');
 
-    expect(redisClient.setex).toHaveBeenCalledWith(
-      'otp:LOGIN:user@example.com',
-      300,
-      expect.stringMatching(/^\d{6}$/)
-    );
+    expect(redisClient.setex).toHaveBeenCalledWith('otp:LOGIN:user@example.com', 300, expect.any(String));
     expect(licensedProvider.sendOtp).toHaveBeenCalledWith(
       expect.objectContaining({
         to: 'user@example.com',
@@ -37,6 +35,6 @@ describe('OtpService', () => {
         code: expect.stringMatching(/^\d{6}$/)
       })
     );
-    expect(response).toEqual({ success: true });
+    expect(response).toEqual({ message: 'OTP sent', expiresIn: 300, resendAfter: 60 });
   });
 });

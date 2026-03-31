@@ -7,22 +7,35 @@ interface Props {
   title: string;
   onPress: () => void;
   style?: ViewStyle;
+  disabled?: boolean;
 }
 
-export const GradientButton: React.FC<Props> = ({ title, onPress, style }) => {
+export const GradientButton: React.FC<Props> = ({ title, onPress, style, disabled }) => {
   const scale = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
+    if (disabled) return;
     Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, friction: 6 }).start();
   };
   const handlePressOut = () => {
+    if (disabled) return;
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 6 }).start();
   };
 
   return (
     <Animated.View style={[{ transform: [{ scale }] }, style]}>
-      <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
-        <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.btn}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled}
+      >
+        <LinearGradient
+          colors={gradients.primary}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.btn, disabled && styles.disabledBtn]}
+        >
           <Text style={styles.label}>{title}</Text>
         </LinearGradient>
       </Pressable>
@@ -45,5 +58,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     fontSize: 16
+  },
+  disabledBtn: {
+    opacity: 0.5
   }
 });

@@ -12,6 +12,18 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('app.port', 3000);
+  const httpAdapter = app.getHttpAdapter().getInstance() as {
+    use: (handler: (req: { url: string }, res: unknown, next: () => void) => void) => void;
+  };
+
+  httpAdapter.use((req, _res, next) => {
+    if (req.url === '/api/v1') {
+      req.url = '/api';
+    } else if (req.url.startsWith('/api/v1/')) {
+      req.url = req.url.replace('/api/v1/', '/api/');
+    }
+    next();
+  });
 
   app.setGlobalPrefix('api');
   app.useGlobalPipes(

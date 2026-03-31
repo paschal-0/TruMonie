@@ -1,0 +1,190 @@
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import React, { useMemo, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+import { GradientButton } from '../../components/GradientButton';
+import { ThemedText } from '../../components/Themed';
+import { useRegister } from '../../hooks/useAuthActions';
+import { colors, radius } from '../../theme';
+import { buildUsername, generateTempPassword } from './onboarding';
+import { AuthStackParamList } from '../../navigation/types';
+
+export const OnboardingBiodataScreen: React.FC = () => {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<AuthStackParamList, 'OnboardingBiodata'>>();
+  const route = useRoute<RouteProp<AuthStackParamList, 'OnboardingBiodata'>>();
+  const { phoneDisplay, phoneE164 } = route.params;
+  const hasContext = Boolean(phoneE164);
+  const register = useRegister(() => undefined);
+
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [usePhoneAsAccountNumber, setUsePhoneAsAccountNumber] = useState(true);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const username = useMemo(() => buildUsername(firstName || 'user', lastName || 'demo'), [firstName, lastName]);
+
+  const continueOnboarding = () => {
+    if (!hasContext) {
+      setLocalError('Phone session missing. Restart onboarding.');
+      return;
+    }
+    if (!firstName.trim() || !lastName.trim()) {
+      setLocalError('First name and last name are required');
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
+      setLocalError('Date of birth must be YYYY-MM-DD');
+      return;
+    }
+    setLocalError(null);
+
+    const password = generateTempPassword();
+    const normalizedEmail = email.trim() || `${username}@placeholder.trumonie.app`;
+
+    register.mutate(
+      {
+        phoneNumber: phoneE164,
+        email: normalizedEmail,
+        username,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        password,
+        usePhoneAsAccountNumber
+      },
+      {
+        onSuccess: (payload: any) => {
+          navigation.navigate('OnboardingKyc', {
+            phoneDisplay,
+            phoneE164,
+            dateOfBirth,
+            tokens: payload.tokens
+          });
+        }
+      }
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <ThemedText style={styles.title}>Basic Details</ThemedText>
+      <ThemedText style={styles.subtitle}>Phone: {phoneDisplay}</ThemedText>
+
+      <TextInput
+        value={firstName}
+        onChangeText={setFirstName}
+        placeholder="First name"
+        placeholderTextColor={colors.textSecondary}
+        style={styles.input}
+      />
+      <TextInput
+        value={lastName}
+        onChangeText={setLastName}
+        placeholder="Last name"
+        placeholderTextColor={colors.textSecondary}
+        style={styles.input}
+      />
+      <TextInput
+        value={email}
+        onChangeText={setEmail}
+        placeholder="Email (optional)"
+        placeholderTextColor={colors.textSecondary}
+        style={styles.input}
+        autoCapitalize="none"
+      />
+      <TextInput
+        value={dateOfBirth}
+        onChangeText={setDateOfBirth}
+        placeholder="Date of birth (YYYY-MM-DD)"
+        placeholderTextColor={colors.textSecondary}
+        style={styles.input}
+      />
+
+      <View style={styles.switchRow}>
+        <View style={{ flex: 1 }}>
+          <ThemedText style={styles.switchTitle}>Use phone as account number</ThemedText>
+          <ThemedText style={styles.switchSub}>If OFF, system generates 10-digit account number.</ThemedText>
+        </View>
+        <Switch value={usePhoneAsAccountNumber} onValueChange={setUsePhoneAsAccountNumber} />
+      </View>
+
+      <ThemedText style={styles.hint}>Auto username preview: {username}</ThemedText>
+
+      {(localError || register.error) && (
+        <ThemedText style={styles.error}>
+          {localError || (register.error as Error | undefined)?.message}
+        </ThemedText>
+      )}
+
+      {register.isPending ? (
+        <ActivityIndicator color={colors.accent} style={{ marginTop: 14 }} />
+      ) : (
+        <GradientButton
+          title="Continue to KYC"
+          onPress={continueOnboarding}
+          style={styles.cta}
+          disabled={!hasContext}
+        />
+      )}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+    paddingTop: 40,
+    backgroundColor: colors.bg,
+    gap: 10
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '800'
+  },
+  subtitle: {
+    color: colors.textSecondary,
+    marginBottom: 8
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 12,
+    color: colors.textPrimary,
+    backgroundColor: 'rgba(255,255,255,0.04)'
+  },
+  switchRow: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    marginTop: 4
+  },
+  switchTitle: {
+    fontWeight: '700'
+  },
+  switchSub: {
+    color: colors.textSecondary,
+    fontSize: 12
+  },
+  hint: {
+    color: colors.textSecondary,
+    fontSize: 12
+  },
+  error: {
+    color: '#ff8f8f',
+    marginTop: 4
+  },
+  cta: {
+    marginTop: 'auto',
+    marginBottom: 8
+  }
+});

@@ -5,18 +5,20 @@ import { useNavigation } from '@react-navigation/native';
 import { GradientButton } from '../../components/GradientButton';
 import { GlassCard } from '../../components/GlassCard';
 import { colors } from '../../theme';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { AuthStackParamList } from '../../navigation/types';
 
 export const WelcomeScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList, 'Welcome'>>();
 
   return (
     <View style={styles.container}>
       <GlassCard>
-        <ThemedText style={styles.title}>Welcome to TruMoni</ThemedText>
-        <ThemedText style={styles.subtitle}>Your Money. Your Trust.</ThemedText>
+        <ThemedText style={styles.title}>Welcome to TruMonie</ThemedText>
+        <ThemedText style={styles.subtitle}>Banking core for wallet, savings, Ajo and transfers.</ThemedText>
         <View style={styles.actions}>
-          <GradientButton title="Create an account" onPress={() => navigation.navigate('Register' as never)} />
-          <GradientButton title="I already have an account" onPress={() => navigation.navigate('Login' as never)} />
+          <GradientButton title="Create an account" onPress={() => navigation.navigate('OnboardingPhone')} />
+          <GradientButton title="I already have an account" onPress={() => navigation.navigate('Login')} />
         </View>
       </GlassCard>
     </View>

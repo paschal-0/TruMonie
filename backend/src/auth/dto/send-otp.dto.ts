@@ -1,14 +1,19 @@
-import { IsIn, IsNotEmpty, IsString } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class SendOtpDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  destination!: string;
+  destination?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
 
   @IsString()
   @IsNotEmpty()
   purpose!: string;
 
+  @IsOptional()
   @IsIn(['sms', 'email'])
-  channel!: 'sms' | 'email';
+  channel?: 'sms' | 'email';
 }

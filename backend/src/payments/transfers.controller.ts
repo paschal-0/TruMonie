@@ -13,6 +13,7 @@ import { Currency } from '../ledger/enums/currency.enum';
 import { PaymentsService } from './payments.service';
 import { VelocityService } from '../risk/velocity.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { CircuitBreakerService } from '../risk/circuit-breaker.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('payments')
@@ -24,7 +25,8 @@ export class TransfersController {
     private readonly limitsService: LimitsService,
     private readonly paymentsService: PaymentsService,
     private readonly velocityService: VelocityService,
-    private readonly notificationsService: NotificationsService
+    private readonly notificationsService: NotificationsService,
+    private readonly circuitBreakerService: CircuitBreakerService
   ) {}
 
   @Post('p2p')
@@ -39,6 +41,13 @@ export class TransfersController {
       throw new BadRequestException('Recipient not found');
     }
     const recipientWallet = await this.requireWallet(recipient.id, dto.currency);
+    this.limitsService.assertWithinMaxBalance(
+      recipient.limitTier,
+      recipientWallet.balanceMinor,
+      dto.amountMinor.toString()
+    );
+    await this.circuitBreakerService.assertWithinNewDeviceCap(user.id, dto.amountMinor.toString());
+    await this.circuitBreakerService.assertWithinNewDeviceCap(recipient.id, dto.amountMinor.toString());
 
     await this.velocityService.assertWithinLimits(
       user.id,
@@ -80,6 +89,7 @@ export class TransfersController {
     }
     await this.usersService.assertValidTransactionPin(user.id, dto.pin);
     const senderWallet = await this.requireWallet(user.id, dto.currency);
+    await this.circuitBreakerService.assertWithinNewDeviceCap(user.id, dto.amountMinor.toString());
     await this.velocityService.assertWithinLimits(
       user.id,
       dto.currency,

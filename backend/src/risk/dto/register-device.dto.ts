@@ -10,4 +10,19 @@ export class RegisterDeviceDto {
   @IsString()
   @MaxLength(64)
   deviceType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  platform?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  osVersion?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  appVersion?: string;
 }

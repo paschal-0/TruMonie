@@ -5,8 +5,12 @@ import { useRegister } from '../../hooks/useAuthActions';
 import { useAuth } from '../../providers/AuthProvider';
 import { GradientButton } from '../../components/GradientButton';
 import { colors, radius } from '../../theme';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { AuthStackParamList } from '../../navigation/types';
 
 export const RegisterScreen: React.FC = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList, 'Register'>>();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -21,8 +25,14 @@ export const RegisterScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <ThemedText style={styles.heading}>Create Account</ThemedText>
-      <ThemedText style={styles.sub}>Join TruMoni. Secure wallet, bills, Ajo, and more.</ThemedText>
+      <ThemedText style={styles.heading}>Legacy Direct Register</ThemedText>
+      <ThemedText style={styles.sub}>
+        Preferred onboarding now starts with Phone + OTP + KYC + Liveness.
+      </ThemedText>
+      <GradientButton
+        title="Use New Onboarding Flow"
+        onPress={() => navigation.navigate('OnboardingPhone')}
+      />
       <TextInput
         placeholder="Email"
         placeholderTextColor={colors.textSecondary}

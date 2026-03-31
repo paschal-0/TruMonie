@@ -34,6 +34,15 @@ describe('PaymentsService', () => {
     const accountsPolicy = {
       assertOwnership: jest.fn().mockResolvedValue(undefined)
     };
+    const circuitBreakerService = {
+      assertWithinNewDeviceCap: jest.fn().mockResolvedValue(undefined)
+    };
+    const limitsService = {
+      assertWithinMaxBalance: jest.fn()
+    };
+    const usersService = {
+      findById: jest.fn().mockResolvedValue({ id: 'user-1', limitTier: 'TIER2' })
+    };
     const configService = {
       get: jest.fn((key: string, fallback?: unknown) => {
         const parts = key.split('.');
@@ -65,10 +74,13 @@ describe('PaymentsService', () => {
       ledgerService as unknown as ConstructorParameters<typeof PaymentsService>[0],
       accountsService as unknown as ConstructorParameters<typeof PaymentsService>[1],
       accountsPolicy as unknown as ConstructorParameters<typeof PaymentsService>[2],
-      configService as unknown as ConstructorParameters<typeof PaymentsService>[3],
-      fundingRepo as unknown as ConstructorParameters<typeof PaymentsService>[4],
-      payoutRepo as unknown as ConstructorParameters<typeof PaymentsService>[5],
-      webhookRepo as unknown as ConstructorParameters<typeof PaymentsService>[6],
+      circuitBreakerService as unknown as ConstructorParameters<typeof PaymentsService>[3],
+      limitsService as unknown as ConstructorParameters<typeof PaymentsService>[4],
+      usersService as unknown as ConstructorParameters<typeof PaymentsService>[5],
+      configService as unknown as ConstructorParameters<typeof PaymentsService>[6],
+      fundingRepo as unknown as ConstructorParameters<typeof PaymentsService>[7],
+      payoutRepo as unknown as ConstructorParameters<typeof PaymentsService>[8],
+      webhookRepo as unknown as ConstructorParameters<typeof PaymentsService>[9],
       providers
     );
 

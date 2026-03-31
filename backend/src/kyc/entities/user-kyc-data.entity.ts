@@ -15,8 +15,14 @@ export class UserKycData extends BaseEntity {
   @Column({ type: 'varchar', length: 512, nullable: true })
   bvnEncrypted!: string | null;
 
+  @Column({ type: 'varchar', length: 128, nullable: true })
+  bvnHash!: string | null;
+
   @Column({ type: 'varchar', length: 512, nullable: true })
   ninEncrypted!: string | null;
+
+  @Column({ type: 'varchar', length: 128, nullable: true })
+  ninHash!: string | null;
 
   @Column({ type: 'varchar', length: 1024, nullable: true })
   addressEncrypted!: string | null;

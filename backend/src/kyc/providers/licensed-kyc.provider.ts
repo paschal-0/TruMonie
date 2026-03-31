@@ -18,8 +18,62 @@ interface KycPayload {
 @Injectable()
 export class LicensedKycProvider implements KycProvider {
   readonly name = 'licensed';
+  private readonly breakerState = new Map<
+    string,
+    { failures: number; windowStartedAt: number; openUntil?: number }
+  >();
+  private readonly breakerThreshold = 5;
+  private readonly breakerWindowMs = 60_000;
+  private readonly breakerCooldownMs = 60_000;
 
   constructor(private readonly configService: ConfigService) {}
+
+  async verifyBvn(params: {
+    bvn: string;
+    firstName: string;
+    lastName: string;
+    dateOfBirth: string;
+    phone?: string;
+  }): Promise<{ match: boolean; reference: string; metadata: Record<string, unknown> }> {
+    const data = await this.executeWithCircuitBreaker('kyc-bvn', () =>
+      this.request<KycPayload>('POST', this.verifyPath(), {
+        type: 'BVN',
+        ...params
+      })
+    );
+    const payload = data?.data ?? data;
+    return {
+      match: Boolean(payload?.match ?? payload?.verified),
+      reference: String(payload?.reference ?? `licensed-bvn-${Date.now()}`),
+      metadata:
+        payload && typeof payload === 'object'
+          ? (payload as Record<string, unknown>)
+          : { raw: payload }
+    };
+  }
+
+  async verifyNin(params: {
+    nin: string;
+    firstName: string;
+    lastName: string;
+    dateOfBirth?: string;
+  }): Promise<{ match: boolean; reference: string; metadata: Record<string, unknown> }> {
+    const data = await this.executeWithCircuitBreaker('kyc-nin', () =>
+      this.request<KycPayload>('POST', this.verifyPath(), {
+        type: 'NIN',
+        ...params
+      })
+    );
+    const payload = data?.data ?? data;
+    return {
+      match: Boolean(payload?.match ?? payload?.verified),
+      reference: String(payload?.reference ?? `licensed-nin-${Date.now()}`),
+      metadata:
+        payload && typeof payload === 'object'
+          ? (payload as Record<string, unknown>)
+          : { raw: payload }
+    };
+  }
 
   async verifyBvnAndNin(params: {
     bvn: string;
@@ -28,7 +82,9 @@ export class LicensedKycProvider implements KycProvider {
     lastName: string;
     dateOfBirth: string;
   }): Promise<{ match: boolean; reference: string; metadata: Record<string, unknown> }> {
-    const data = await this.request<KycPayload>('POST', this.verifyPath(), params);
+    const data = await this.executeWithCircuitBreaker('kyc-verify', () =>
+      this.request<KycPayload>('POST', this.verifyPath(), params)
+    );
     const payload = data?.data ?? data;
     return {
       match: Boolean(payload?.match ?? payload?.verified),
@@ -90,6 +146,37 @@ export class LicensedKycProvider implements KycProvider {
       throw error;
     } finally {
       clearTimeout(timeout);
+    }
+  }
+
+  private async executeWithCircuitBreaker<T>(integrationKey: string, fn: () => Promise<T>): Promise<T> {
+    const now = Date.now();
+    const state = this.breakerState.get(integrationKey);
+    if (state?.openUntil && now < state.openUntil) {
+      throw new ServiceUnavailableException(
+        `${integrationKey} temporarily unavailable (circuit breaker open)`
+      );
+    }
+
+    try {
+      const res = await fn();
+      this.breakerState.set(integrationKey, { failures: 0, windowStartedAt: now });
+      return res;
+    } catch (error) {
+      const current = this.breakerState.get(integrationKey);
+      const windowStartedAt =
+        current && now - current.windowStartedAt < this.breakerWindowMs
+          ? current.windowStartedAt
+          : now;
+      const failures =
+        current && now - current.windowStartedAt < this.breakerWindowMs
+          ? current.failures + 1
+          : 1;
+      const openUntil =
+        failures >= this.breakerThreshold ? now + this.breakerCooldownMs : undefined;
+
+      this.breakerState.set(integrationKey, { failures, windowStartedAt, openUntil });
+      throw error;
     }
   }
 }

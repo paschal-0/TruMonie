@@ -2,8 +2,11 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { LedgerModule } from '../ledger/ledger.module';
 import { UsersModule } from '../users/users.module';
+import { LimitsModule } from '../limits/limits.module';
 import { UserKycData } from './entities/user-kyc-data.entity';
+import { KycVerification } from './entities/kyc-verification.entity';
 import { KycController } from './kyc.controller';
 import { KycService } from './kyc.service';
 import { PiiCryptoService } from './pii-crypto.service';
@@ -12,7 +15,12 @@ import { KYC_PROVIDER } from './kyc.constants';
 import { LicensedKycProvider } from './providers/licensed-kyc.provider';
 
 @Module({
-  imports: [UsersModule, TypeOrmModule.forFeature([UserKycData])],
+  imports: [
+    UsersModule,
+    LedgerModule,
+    LimitsModule,
+    TypeOrmModule.forFeature([UserKycData, KycVerification])
+  ],
   controllers: [KycController],
   providers: [
     KycService,

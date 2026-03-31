@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
 
 @Injectable()
 export class PiiCryptoService {
@@ -31,5 +31,9 @@ export class PiiCryptoService {
     decipher.setAuthTag(tag);
     const decrypted = Buffer.concat([decipher.update(data), decipher.final()]);
     return decrypted.toString('utf8');
+  }
+
+  hash(value: string): string {
+    return createHash('sha256').update(value.trim()).digest('hex');
   }
 }

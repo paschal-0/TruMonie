@@ -4,7 +4,7 @@ import * as argon2 from 'argon2';
 import { Repository } from 'typeorm';
 
 import { CreateUserDto } from './dto/create-user.dto';
-import { KycStatus, User, UserStatus } from './entities/user.entity';
+import { AccountNumberSource, KycStatus, User, UserStatus } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
@@ -39,7 +39,10 @@ export class UsersService {
       passwordHash,
       pinHash,
       status: UserStatus.PENDING,
-      kycStatus: KycStatus.UNVERIFIED
+      kycStatus: KycStatus.UNVERIFIED,
+      accountNumberSource: dto.usePhoneAsAccountNumber
+        ? AccountNumberSource.PHONE
+        : AccountNumberSource.SYSTEM
     });
 
     const saved = await this.userRepository.save(user);

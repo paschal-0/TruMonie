@@ -17,12 +17,18 @@ export enum KycStatus {
 export enum LimitTier {
   TIER0 = 'TIER0',
   TIER1 = 'TIER1',
-  TIER2 = 'TIER2'
+  TIER2 = 'TIER2',
+  TIER3 = 'TIER3'
 }
 
 export enum UserRole {
   USER = 'USER',
   ADMIN = 'ADMIN'
+}
+
+export enum AccountNumberSource {
+  SYSTEM = 'SYSTEM',
+  PHONE = 'PHONE'
 }
 
 @Entity({ name: 'users' })
@@ -65,4 +71,7 @@ export class User extends BaseEntity {
 
   @Column({ type: 'enum', enum: LimitTier, default: LimitTier.TIER0 })
   limitTier!: LimitTier;
+
+  @Column({ type: 'varchar', length: 16, default: AccountNumberSource.SYSTEM })
+  accountNumberSource!: AccountNumberSource;
 }

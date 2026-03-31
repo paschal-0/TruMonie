@@ -1,5 +1,18 @@
 export interface KycProvider {
   name: string;
+  verifyBvn?(params: {
+    bvn: string;
+    firstName: string;
+    lastName: string;
+    dateOfBirth: string;
+    phone?: string;
+  }): Promise<{ match: boolean; reference: string; metadata: Record<string, unknown> }>;
+  verifyNin?(params: {
+    nin: string;
+    firstName: string;
+    lastName: string;
+    dateOfBirth?: string;
+  }): Promise<{ match: boolean; reference: string; metadata: Record<string, unknown> }>;
   verifyBvnAndNin(params: {
     bvn: string;
     nin: string;

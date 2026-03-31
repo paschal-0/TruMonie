@@ -19,6 +19,9 @@ import { FundingStatus, FundingTransaction } from './entities/funding-transactio
 import { Payout, PayoutStatus } from './entities/payout.entity';
 import { WebhookEvent } from './entities/webhook-event.entity';
 import { PAYMENT_PROVIDERS } from './payments.constants';
+import { CircuitBreakerService } from '../risk/circuit-breaker.service';
+import { LimitsService } from '../limits/limits.service';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class PaymentsService {
@@ -28,6 +31,9 @@ export class PaymentsService {
     private readonly ledgerService: LedgerService,
     private readonly accountsService: AccountsService,
     private readonly accountsPolicy: AccountsPolicy,
+    private readonly circuitBreakerService: CircuitBreakerService,
+    private readonly limitsService: LimitsService,
+    private readonly usersService: UsersService,
     private readonly configService: ConfigService,
     @InjectRepository(FundingTransaction)
     private readonly fundingRepo: Repository<FundingTransaction>,
@@ -78,6 +84,7 @@ export class PaymentsService {
     const provider = this.resolveProvider(providerName);
     this.assertProviderSupportsCurrency(provider, currency);
     await this.accountsPolicy.assertOwnership(userId, sourceAccountId);
+    await this.circuitBreakerService.assertWithinNewDeviceCap(userId, amountMinor);
     const settlementAccountId = this.getSettlementAccount(provider.name, currency);
 
     const ledgerEntry = await this.ledgerService.postEntry({
@@ -156,6 +163,13 @@ export class PaymentsService {
     if (!wallet) {
       throw new NotFoundException('Wallet not found for user');
     }
+
+    const user = await this.usersService.findById(params.userId);
+    if (!user) {
+      throw new NotFoundException('User not found for funding');
+    }
+    this.limitsService.assertWithinMaxBalance(user.limitTier, wallet.balanceMinor, params.amountMinor);
+    await this.circuitBreakerService.assertWithinNewDeviceCap(params.userId, params.amountMinor);
 
     const settlementAccountId = this.getSettlementAccount(provider.name, params.currency);
     const ledgerEntry = await this.ledgerService.postEntry({

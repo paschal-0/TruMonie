@@ -1,16 +1,14 @@
 import { Body, Controller, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { User , UserRole, UserStatus } from '../users/entities/user.entity';
+import { User, UserRole, UserStatus } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { AuditService } from './audit.service';
-import { DeviceStatus, UserDevice } from './entities/user-device.entity';
 import { RegisterDeviceDto } from './dto/register-device.dto';
+import { DeviceBindingsService } from './device-bindings.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('risk')
@@ -18,8 +16,7 @@ export class RiskController {
   constructor(
     private readonly usersService: UsersService,
     private readonly auditService: AuditService,
-    @InjectRepository(UserDevice)
-    private readonly userDeviceRepo: Repository<UserDevice>
+    private readonly deviceBindingsService: DeviceBindingsService
   ) {}
 
   @UseGuards(RolesGuard)
@@ -42,37 +39,27 @@ export class RiskController {
 
   @Post('device/register')
   async registerDevice(@CurrentUser() user: User, @Body() dto: RegisterDeviceDto) {
-    const now = new Date();
-    const existing = await this.userDeviceRepo.findOne({
-      where: { userId: user.id, fingerprint: dto.fingerprint }
-    });
-
-    const saved = await this.userDeviceRepo.save(
-      existing
-        ? this.userDeviceRepo.merge(existing, {
-            status: DeviceStatus.ACTIVE,
-            deviceType: dto.deviceType ?? existing.deviceType,
-            lastSeenAt: now
-          })
-        : this.userDeviceRepo.create({
-            userId: user.id,
-            fingerprint: dto.fingerprint,
-            deviceType: dto.deviceType ?? null,
-            status: DeviceStatus.ACTIVE,
-            lastSeenAt: now
-          })
+    const platform: 'android' | 'ios' =
+      dto.platform === 'ios' || dto.platform === 'android'
+        ? dto.platform
+        : dto.deviceType?.toLowerCase().includes('ios')
+        ? 'ios'
+        : 'android';
+    const response = await this.deviceBindingsService.bindDevice(
+      user.id,
+      {
+        hardwareId: dto.fingerprint,
+        platform,
+        osVersion: dto.osVersion ?? 'unknown',
+        appVersion: dto.appVersion ?? 'unknown'
+      },
+      user.id
     );
-
-    await this.auditService.record(user.id, 'DEVICE_REGISTER', {
-      fingerprint: dto.fingerprint,
-      deviceType: dto.deviceType,
-      deviceId: saved.id
-    });
-
     return {
       status: 'ok',
-      deviceId: saved.id,
-      lastSeenAt: saved.lastSeenAt
+      deviceId: response.bindingId,
+      boundAt: response.boundAt,
+      circuitBreaker: response.circuitBreaker
     };
   }
 }

@@ -8,19 +8,23 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { UsersModule } from '../users/users.module';
-import { LedgerModule } from '../ledger/ledger.module';
 import { OtpService } from './otp.service';
 import { RefreshTokensService } from './refresh-tokens.service';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { OnboardingEvent } from './entities/onboarding-event.entity';
 import { InternalOtpProvider } from './providers/internal-otp.provider';
 import { LicensedOtpProvider } from './providers/licensed-otp.provider';
 import { OTP_PROVIDERS } from './otp.constants';
+import { OnboardingEventsService } from './onboarding-events.service';
+import { RiskModule } from '../risk/risk.module';
+import { KycModule } from '../kyc/kyc.module';
 
 @Module({
   imports: [
     UsersModule,
-    LedgerModule,
-    TypeOrmModule.forFeature([RefreshToken]),
+    RiskModule,
+    KycModule,
+    TypeOrmModule.forFeature([RefreshToken, OnboardingEvent]),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -36,6 +40,7 @@ import { OTP_PROVIDERS } from './otp.constants';
     AuthService,
     JwtStrategy,
     OtpService,
+    OnboardingEventsService,
     RefreshTokensService,
     InternalOtpProvider,
     LicensedOtpProvider,
