@@ -4,6 +4,7 @@ const BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ||
   Constants.expoConfig?.extra?.apiUrl ||
   'http://localhost:3000/api';
+const REQUEST_TIMEOUT_MS = 20000;
 
 class ApiError extends Error {
   status: number;
@@ -53,13 +54,36 @@ export async function apiPatch<T>(path: string, body: any, token?: string) {
 }
 
 async function apiRequest<T>(method: 'GET' | 'POST' | 'PATCH', path: string, body?: any, token?: string) {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers: {
-      ...(method !== 'GET' ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    },
-    body: body === undefined ? undefined : JSON.stringify(body)
-  });
-  return handleResponse<T>(res);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers: {
+        ...(method !== 'GET' ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: controller.signal
+    });
+    return handleResponse<T>(res);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new ApiError(
+        `Request timed out after ${REQUEST_TIMEOUT_MS / 1000}s. Check backend health/network and try again.`,
+        0,
+        { baseUrl: BASE_URL, path }
+      );
+    }
+    if (error instanceof TypeError) {
+      throw new ApiError(
+        'Network request failed. Confirm API URL and internet connection.',
+        0,
+        { baseUrl: BASE_URL, path }
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }

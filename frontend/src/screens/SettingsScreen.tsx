@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
 import { ThemedText } from '../components/Themed';
 import { useAuth } from '../providers/AuthProvider';
@@ -20,6 +21,7 @@ import { GradientButton } from '../components/GradientButton';
 import { colors, radius } from '../theme';
 import { useProfile } from '../hooks/useProfile';
 import { useSetTransactionPin, useTransactionPinStatus } from '../hooks/useTransactionPin';
+import { useSetLoginPassword } from '../hooks/useAuthActions';
 import {
   getBiometricTransactionsEnabled,
   saveTransactionPinLocally,
@@ -55,10 +57,12 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 );
 
 export const SettingsScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
   const { session, logout } = useAuth();
   const { data: profile } = useProfile(session?.accessToken);
   const { data: pinStatus } = useTransactionPinStatus(session?.accessToken);
   const setPinMutation = useSetTransactionPin(session?.accessToken);
+  const setLoginPasswordMutation = useSetLoginPassword(session?.accessToken);
 
   const [faceId, setFaceId] = useState(true);
   const [push, setPush] = useState(true);
@@ -66,6 +70,10 @@ export const SettingsScreen: React.FC = () => {
   const [showPinForm, setShowPinForm] = useState(false);
   const [newPin, setNewPin] = useState('');
   const [currentPin, setCurrentPin] = useState('');
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [biometricSupported, setBiometricSupported] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
 
@@ -131,6 +139,33 @@ export const SettingsScreen: React.FC = () => {
     );
   };
 
+  const onSaveLoginPassword = () => {
+    if (newPassword.length < 8) {
+      Alert.alert('Validation', 'Password must be at least 8 characters.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      Alert.alert('Validation', 'Passwords do not match.');
+      return;
+    }
+
+    setLoginPasswordMutation.mutate(
+      {
+        password: newPassword,
+        currentPassword: currentPassword.trim() ? currentPassword : undefined
+      },
+      {
+        onSuccess: () => {
+          Alert.alert('Success', 'Login password updated.');
+          setCurrentPassword('');
+          setNewPassword('');
+          setConfirmNewPassword('');
+          setShowPasswordForm(false);
+        }
+      }
+    );
+  };
+
   const comingSoon = (feature: string) => {
     Alert.alert('Coming Soon', `${feature} will be available in the next release.`);
   };
@@ -156,6 +191,12 @@ export const SettingsScreen: React.FC = () => {
       </View>
 
       <Section title="Security">
+        <Row
+          icon="checkmark-done-circle"
+          title="Complete KYC"
+          subtitle={`Status: ${profile?.kycStatus ?? 'UNVERIFIED'} | Tier: ${profile?.limitTier ?? 'TIER0'}`}
+          onPress={() => navigation.navigate('CompleteKyc')}
+        />
         <Row
           icon="finger-print"
           title="Face ID Login"
@@ -192,6 +233,53 @@ export const SettingsScreen: React.FC = () => {
           subtitle={pinStatus?.hasTransactionPin ? 'PIN is set' : 'Required for transfers and payments'}
           onPress={() => setShowPinForm((prev) => !prev)}
         />
+        <Row
+          icon="key"
+          title="Set Login Password"
+          subtitle="Set or change your sign-in password"
+          onPress={() => setShowPasswordForm((prev) => !prev)}
+        />
+        {showPasswordForm ? (
+          <View style={styles.pinForm}>
+            <ThemedText style={styles.rowSub}>Current password (optional for recovery)</ThemedText>
+            <TextInput
+              style={styles.input}
+              secureTextEntry
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              placeholder="Current password"
+              placeholderTextColor={colors.textSecondary}
+            />
+            <ThemedText style={[styles.rowSub, { marginTop: 8 }]}>New password</ThemedText>
+            <TextInput
+              style={styles.input}
+              secureTextEntry
+              value={newPassword}
+              onChangeText={setNewPassword}
+              placeholder="New password (min 8 chars)"
+              placeholderTextColor={colors.textSecondary}
+            />
+            <ThemedText style={[styles.rowSub, { marginTop: 8 }]}>Confirm new password</ThemedText>
+            <TextInput
+              style={styles.input}
+              secureTextEntry
+              value={confirmNewPassword}
+              onChangeText={setConfirmNewPassword}
+              placeholder="Confirm new password"
+              placeholderTextColor={colors.textSecondary}
+            />
+            {setLoginPasswordMutation.isError ? (
+              <ThemedText style={styles.errorText}>
+                {(setLoginPasswordMutation.error as Error).message}
+              </ThemedText>
+            ) : null}
+            {setLoginPasswordMutation.isPending ? (
+              <ActivityIndicator color={colors.accent} />
+            ) : (
+              <GradientButton title="Save Login Password" onPress={onSaveLoginPassword} style={{ marginTop: 10 }} />
+            )}
+          </View>
+        ) : null}
         {showPinForm ? (
           <View style={styles.pinForm}>
             {pinStatus?.hasTransactionPin ? (

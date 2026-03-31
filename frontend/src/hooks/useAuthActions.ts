@@ -26,3 +26,9 @@ export function useVerifyOtp() {
     mutationFn: (body: any) => apiPost('/auth/otp/verify', body)
   });
 }
+
+export function useSetLoginPassword(token?: string) {
+  return useMutation({
+    mutationFn: (body: any) => apiPost('/auth/password/set', body, token)
+  });
+}

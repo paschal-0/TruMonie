@@ -23,6 +23,8 @@ import { TransferDeviceDto } from './dto/transfer-device.dto';
 import { DeviceBindingsService } from '../risk/device-bindings.service';
 import { KycService } from '../kyc/kyc.service';
 import { OnboardingEventsService } from './onboarding-events.service';
+import { UsersService } from '../users/users.service';
+import { SetLoginPasswordDto } from './dto/set-login-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -31,7 +33,8 @@ export class AuthController {
     private readonly otpService: OtpService,
     private readonly deviceBindingsService: DeviceBindingsService,
     private readonly kycService: KycService,
-    private readonly onboardingEventsService: OnboardingEventsService
+    private readonly onboardingEventsService: OnboardingEventsService,
+    private readonly usersService: UsersService
   ) {}
 
   @Post('register')
@@ -122,6 +125,12 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() user: User) {
     return this.authService.me(user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('password/set')
+  setPassword(@CurrentUser() user: User, @Body() dto: SetLoginPasswordDto) {
+    return this.usersService.setLoginPassword(user.id, dto.password, dto.currentPassword);
   }
 
   private resolveDestination(destination?: string, phone?: string): string {

@@ -147,6 +147,24 @@ export class UsersService {
     return { hasTransactionPin: true };
   }
 
+  async setLoginPassword(userId: string, password: string, currentPassword?: string) {
+    const user = await this.findByIdWithSecrets(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    if (currentPassword) {
+      const validCurrentPassword = await this.verifySecret(user.passwordHash, currentPassword);
+      if (!validCurrentPassword) {
+        throw new UnauthorizedException('Current password is invalid');
+      }
+    }
+
+    const passwordHash = await this.hashSecret(password);
+    await this.userRepository.update({ id: userId }, { passwordHash });
+    return { passwordUpdated: true };
+  }
+
   private hashSecret(secret: string): Promise<string> {
     return argon2.hash(secret);
   }

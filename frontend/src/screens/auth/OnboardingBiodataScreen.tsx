@@ -1,27 +1,28 @@
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useRoute } from '@react-navigation/native';
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Switch, TextInput, View } from 'react-native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { GradientButton } from '../../components/GradientButton';
 import { ThemedText } from '../../components/Themed';
 import { useRegister } from '../../hooks/useAuthActions';
+import { useAuth } from '../../providers/AuthProvider';
 import { colors, radius } from '../../theme';
-import { buildUsername, formatLocalPhone, generateTempPassword, normalizePhoneToE164 } from './onboarding';
+import { buildUsername, formatLocalPhone, normalizePhoneToE164 } from './onboarding';
 import { AuthStackParamList } from '../../navigation/types';
 
 export const OnboardingBiodataScreen: React.FC = () => {
-  const navigation =
-    useNavigation<NativeStackNavigationProp<AuthStackParamList, 'OnboardingBiodata'>>();
   const route = useRoute<RouteProp<AuthStackParamList, 'OnboardingBiodata'>>();
   const { email } = route.params;
   const hasContext = Boolean(email);
+  const { login } = useAuth();
   const register = useRegister(() => undefined);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phoneInput, setPhoneInput] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [usePhoneAsAccountNumber, setUsePhoneAsAccountNumber] = useState(true);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -29,7 +30,7 @@ export const OnboardingBiodataScreen: React.FC = () => {
   const phoneDisplay = useMemo(() => formatLocalPhone(phoneInput), [phoneInput]);
   const phoneE164 = useMemo(() => normalizePhoneToE164(phoneInput), [phoneInput]);
 
-  const continueOnboarding = () => {
+  const createAccount = () => {
     if (!hasContext) {
       setLocalError('Email session missing. Restart onboarding.');
       return;
@@ -46,10 +47,16 @@ export const OnboardingBiodataScreen: React.FC = () => {
       setLocalError('Enter a valid 11-digit Nigerian phone number');
       return;
     }
+    if (password.length < 8) {
+      setLocalError('Password must be at least 8 characters');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setLocalError('Passwords do not match');
+      return;
+    }
 
     setLocalError(null);
-
-    const password = generateTempPassword();
 
     register.mutate(
       {
@@ -62,14 +69,8 @@ export const OnboardingBiodataScreen: React.FC = () => {
         usePhoneAsAccountNumber
       },
       {
-        onSuccess: (payload: any) => {
-          navigation.navigate('OnboardingKyc', {
-            email,
-            phoneDisplay,
-            phoneE164,
-            dateOfBirth,
-            tokens: payload.tokens
-          });
+        onSuccess: async (payload: any) => {
+          await login(payload.tokens);
         }
       }
     );
@@ -79,6 +80,7 @@ export const OnboardingBiodataScreen: React.FC = () => {
     <View style={styles.container}>
       <ThemedText style={styles.title}>Basic Details</ThemedText>
       <ThemedText style={styles.subtitle}>Verified email: {email}</ThemedText>
+      <ThemedText style={styles.hint}>KYC is optional for now and can be completed later.</ThemedText>
 
       <TextInput
         value={firstName}
@@ -110,6 +112,22 @@ export const OnboardingBiodataScreen: React.FC = () => {
         placeholderTextColor={colors.textSecondary}
         style={styles.input}
       />
+      <TextInput
+        value={password}
+        onChangeText={setPassword}
+        placeholder="Create password (min 8 chars)"
+        placeholderTextColor={colors.textSecondary}
+        secureTextEntry
+        style={styles.input}
+      />
+      <TextInput
+        value={confirmPassword}
+        onChangeText={setConfirmPassword}
+        placeholder="Confirm password"
+        placeholderTextColor={colors.textSecondary}
+        secureTextEntry
+        style={styles.input}
+      />
 
       <View style={styles.switchRow}>
         <View style={{ flex: 1 }}>
@@ -131,8 +149,8 @@ export const OnboardingBiodataScreen: React.FC = () => {
         <ActivityIndicator color={colors.accent} style={{ marginTop: 14 }} />
       ) : (
         <GradientButton
-          title="Continue to KYC"
-          onPress={continueOnboarding}
+          title="Create Account"
+          onPress={createAccount}
           style={styles.cta}
           disabled={!hasContext || register.isPending}
         />

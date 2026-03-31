@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { GradientButton } from '../../components/GradientButton';
 import { ThemedText } from '../../components/Themed';
-import { useLogin } from '../../hooks/useAuthActions';
+import { useLogin, useSendOtp, useVerifyOtp } from '../../hooks/useAuthActions';
 import {
   clearBiometricLoginCredentials,
   getBiometricLoginCredentials,
@@ -30,6 +30,10 @@ export const LoginScreen: React.FC = () => {
   const [biometricEnabled, setBiometricEnabledState] = useState(false);
   const [biometricReady, setBiometricReady] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpLocalError, setOtpLocalError] = useState<string | null>(null);
 
   const { mutate, isPending, error } = useLogin(async (data) => {
     await login({ accessToken: data.tokens.accessToken, refreshToken: data.tokens.refreshToken });
@@ -44,6 +48,8 @@ export const LoginScreen: React.FC = () => {
       setBiometricReady(false);
     }
   });
+  const sendOtp = useSendOtp();
+  const verifyOtp = useVerifyOtp();
 
   useEffect(() => {
     const load = async () => {
@@ -61,6 +67,46 @@ export const LoginScreen: React.FC = () => {
   const onPasswordLogin = () => {
     setLocalError(null);
     mutate({ identifier: identifier.trim(), password });
+  };
+
+  const onSendOtp = () => {
+    const email = otpEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setOtpLocalError('Enter a valid email address');
+      return;
+    }
+    setOtpLocalError(null);
+    sendOtp.mutate(
+      { destination: email, purpose: 'LOGIN', channel: 'email' },
+      {
+        onSuccess: () => setOtpSent(true)
+      }
+    );
+  };
+
+  const onVerifyOtpLogin = () => {
+    const email = otpEmail.trim().toLowerCase();
+    if (!otpSent) {
+      setOtpLocalError('Send OTP first');
+      return;
+    }
+    if (otpCode.length !== 6) {
+      setOtpLocalError('Enter a valid 6-digit OTP');
+      return;
+    }
+    setOtpLocalError(null);
+    verifyOtp.mutate(
+      { destination: email, purpose: 'LOGIN', code: otpCode },
+      {
+        onSuccess: async (payload: any) => {
+          if (!payload?.verified || !payload?.accessToken || !payload?.refreshToken) {
+            setOtpLocalError('OTP login failed');
+            return;
+          }
+          await login({ accessToken: payload.accessToken, refreshToken: payload.refreshToken });
+        }
+      }
+    );
   };
 
   const onBiometricLogin = async () => {
@@ -147,6 +193,46 @@ export const LoginScreen: React.FC = () => {
             onPress={() => navigation.navigate('OnboardingPhone')}
             style={{ marginTop: 10 }}
           />
+          <View style={styles.divider} />
+          <ThemedText style={styles.sub}>
+            Existing account without password? Use email OTP login, then set password in Settings.
+          </ThemedText>
+          <TextInput
+            placeholder="Email for OTP login"
+            placeholderTextColor={colors.textSecondary}
+            style={styles.input}
+            value={otpEmail}
+            onChangeText={setOtpEmail}
+            autoCapitalize="none"
+          />
+          <TextInput
+            placeholder="6-digit OTP"
+            placeholderTextColor={colors.textSecondary}
+            style={styles.input}
+            value={otpCode}
+            onChangeText={setOtpCode}
+            keyboardType="number-pad"
+            maxLength={6}
+          />
+          {(otpLocalError || sendOtp.error || verifyOtp.error) && (
+            <ThemedText style={styles.error}>
+              {otpLocalError ||
+                (sendOtp.error as Error | undefined)?.message ||
+                (verifyOtp.error as Error | undefined)?.message}
+            </ThemedText>
+          )}
+          {sendOtp.isPending || verifyOtp.isPending ? (
+            <ActivityIndicator color={colors.accent} />
+          ) : (
+            <>
+              <GradientButton
+                title={otpSent ? 'Resend OTP' : 'Send OTP'}
+                onPress={onSendOtp}
+                style={{ marginTop: 8 }}
+              />
+              <GradientButton title="Login with OTP" onPress={onVerifyOtpLogin} style={{ marginTop: 8 }} />
+            </>
+          )}
         </>
       )}
     </View>
@@ -178,6 +264,12 @@ const styles = StyleSheet.create({
   },
   switchTitle: { fontWeight: '700', color: colors.textPrimary, marginBottom: 2 },
   switchSub: { color: colors.textSecondary, fontSize: 12 },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginTop: 14,
+    marginBottom: 6
+  },
   error: {
     color: 'tomato'
   }
