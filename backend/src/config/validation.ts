@@ -207,6 +207,30 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   LICENSED_INFRA_NOTIFICATIONS_SEND_PATH?: string;
+
+  @IsString()
+  @IsOptional()
+  TWILIO_ACCOUNT_SID?: string;
+
+  @IsString()
+  @IsOptional()
+  TWILIO_AUTH_TOKEN?: string;
+
+  @IsString()
+  @IsOptional()
+  TWILIO_FROM_NUMBER?: string;
+
+  @IsString()
+  @IsOptional()
+  TWILIO_MESSAGING_SERVICE_SID?: string;
+
+  @IsString()
+  @IsOptional()
+  TWILIO_BASE_URL?: string;
+
+  @IsNumber()
+  @IsOptional()
+  TWILIO_TIMEOUT_MS?: number;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

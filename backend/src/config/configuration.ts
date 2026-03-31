@@ -64,6 +64,14 @@ export interface IntegrationsConfig {
     otpSendPath: string;
     notificationsSendPath: string;
   };
+  twilio: {
+    accountSid?: string;
+    authToken?: string;
+    fromNumber?: string;
+    messagingServiceSid?: string;
+    baseUrl: string;
+    timeoutMs: number;
+  };
 }
 
 export default () => ({
@@ -150,6 +158,14 @@ export default () => ({
       otpSendPath: process.env.LICENSED_INFRA_OTP_SEND_PATH || '/otp/send',
       notificationsSendPath:
         process.env.LICENSED_INFRA_NOTIFICATIONS_SEND_PATH || '/notifications/send'
+    },
+    twilio: {
+      accountSid: process.env.TWILIO_ACCOUNT_SID,
+      authToken: process.env.TWILIO_AUTH_TOKEN,
+      fromNumber: process.env.TWILIO_FROM_NUMBER,
+      messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID,
+      baseUrl: process.env.TWILIO_BASE_URL || 'https://api.twilio.com',
+      timeoutMs: parseInt(process.env.TWILIO_TIMEOUT_MS || '10000', 10)
     }
   } as IntegrationsConfig
 });

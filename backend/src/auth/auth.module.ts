@@ -14,6 +14,7 @@ import { RefreshToken } from './entities/refresh-token.entity';
 import { OnboardingEvent } from './entities/onboarding-event.entity';
 import { InternalOtpProvider } from './providers/internal-otp.provider';
 import { LicensedOtpProvider } from './providers/licensed-otp.provider';
+import { TwilioOtpProvider } from './providers/twilio-otp.provider';
 import { OTP_PROVIDERS } from './otp.constants';
 import { OnboardingEventsService } from './onboarding-events.service';
 import { RiskModule } from '../risk/risk.module';
@@ -44,13 +45,15 @@ import { KycModule } from '../kyc/kyc.module';
     RefreshTokensService,
     InternalOtpProvider,
     LicensedOtpProvider,
+    TwilioOtpProvider,
     {
       provide: OTP_PROVIDERS,
-      useFactory: (internalProvider: InternalOtpProvider, licensedProvider: LicensedOtpProvider) => [
-        internalProvider,
-        licensedProvider
-      ],
-      inject: [InternalOtpProvider, LicensedOtpProvider]
+      useFactory: (
+        internalProvider: InternalOtpProvider,
+        licensedProvider: LicensedOtpProvider,
+        twilioProvider: TwilioOtpProvider
+      ) => [internalProvider, licensedProvider, twilioProvider],
+      inject: [InternalOtpProvider, LicensedOtpProvider, TwilioOtpProvider]
     }
   ],
   exports: [AuthService]
