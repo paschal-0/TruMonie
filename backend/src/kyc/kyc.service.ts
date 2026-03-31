@@ -46,6 +46,16 @@ interface LivenessSession {
   expiresAt: string;
 }
 
+type KycDecision = 'APPROVE' | 'MANUAL_REVIEW' | 'REJECT';
+
+export interface IdentityValidationResult {
+  verificationId: string;
+  passed: boolean;
+  matchScore: number;
+  reference: string;
+  metadata: Record<string, unknown>;
+}
+
 @Injectable()
 export class KycService {
   private readonly logger = new Logger(KycService.name);
@@ -93,8 +103,25 @@ export class KycService {
     });
 
     if (!bvn.passed || !nin.passed) {
-      throw new BadRequestException('KYC verification failed');
+      throw new BadRequestException({
+        status: 'failed',
+        decision: 'REJECT' as KycDecision,
+        tier: user.limitTier,
+        references: [bvn.reference, nin.reference],
+        reason: 'IDENTITY_MISMATCH',
+        checks: {
+          bvn: { passed: bvn.passed, matchScore: bvn.matchScore, reference: bvn.reference },
+          nin: { passed: nin.passed, matchScore: nin.matchScore, reference: nin.reference }
+        }
+      });
     }
+
+    const faceDecision = await this.evaluateFaceComparison(
+      userId,
+      dto.selfieUrl,
+      bvn.metadata,
+      nin.metadata
+    );
 
     await this.upsertKycData(userId, {
       bvn: dto.bvn,
@@ -103,6 +130,24 @@ export class KycService {
       address: dto.address,
       selfieUrl: dto.selfieUrl
     });
+
+    if (faceDecision.decision === 'MANUAL_REVIEW') {
+      await this.usersService.updateKycStatus(userId, {
+        kycStatus: KycStatus.PENDING,
+        status: UserStatus.PENDING
+      });
+      this.logger.warn(
+        `KYC manual review for user ${userId} bvnRef=${bvn.reference} ninRef=${nin.reference} reason=${faceDecision.reason}`
+      );
+      return {
+        status: 'pending_review',
+        decision: faceDecision.decision,
+        tier: user.limitTier,
+        references: [bvn.reference, nin.reference, faceDecision.reference].filter(Boolean),
+        reason: faceDecision.reason,
+        faceComparison: faceDecision.details
+      };
+    }
 
     await this.usersService.updateKycStatus(userId, {
       kycStatus: KycStatus.VERIFIED,
@@ -116,10 +161,16 @@ export class KycService {
     });
 
     this.logger.log(`KYC verified for user ${userId} bvnRef=${bvn.reference} ninRef=${nin.reference}`);
-    return { status: 'verified', tier: LimitTier.TIER1, references: [bvn.reference, nin.reference] };
+    return {
+      status: 'verified',
+      decision: 'APPROVE' as KycDecision,
+      tier: LimitTier.TIER1,
+      references: [bvn.reference, nin.reference, faceDecision.reference].filter(Boolean),
+      faceComparison: faceDecision.details
+    };
   }
 
-  async validateBvn(userId: string, dto: ValidateBvnDto) {
+  async validateBvn(userId: string, dto: ValidateBvnDto): Promise<IdentityValidationResult> {
     const firstName = dto.firstName?.trim();
     const lastName = dto.lastName?.trim();
     if (!firstName || !lastName) {
@@ -166,11 +217,12 @@ export class KycService {
       verificationId: verification.id,
       passed,
       matchScore: score,
-      reference: providerResult.reference
+      reference: providerResult.reference,
+      metadata: providerResult.metadata
     };
   }
 
-  async validateNin(userId: string, dto: ValidateNinDto) {
+  async validateNin(userId: string, dto: ValidateNinDto): Promise<IdentityValidationResult> {
     const firstName = dto.firstName?.trim();
     const lastName = dto.lastName?.trim();
     if (!firstName || !lastName) {
@@ -215,7 +267,8 @@ export class KycService {
       verificationId: verification.id,
       passed,
       matchScore: score,
-      reference: providerResult.reference
+      reference: providerResult.reference,
+      metadata: providerResult.metadata
     };
   }
 
@@ -519,6 +572,119 @@ export class KycService {
     if (digits.startsWith('234') && digits.length === 13) return digits.slice(3);
     if (digits.startsWith('0') && digits.length === 11) return digits.slice(1);
     return digits;
+  }
+
+  private async evaluateFaceComparison(
+    userId: string,
+    selfieUrl: string | undefined,
+    bvnMetadata: Record<string, unknown>,
+    ninMetadata: Record<string, unknown>
+  ): Promise<{
+    decision: KycDecision;
+    reason?: string;
+    reference?: string;
+    details: Record<string, unknown>;
+  }> {
+    if (!selfieUrl || !this.isHttpUrl(selfieUrl)) {
+      return {
+        decision: 'APPROVE',
+        reason: 'SELFIE_NOT_PROVIDED',
+        details: { status: 'skipped', reason: 'SELFIE_NOT_PROVIDED' }
+      };
+    }
+
+    if (!this.provider.compareFace) {
+      return {
+        decision: 'APPROVE',
+        reason: 'FACE_PROVIDER_UNAVAILABLE',
+        details: { status: 'skipped', reason: 'FACE_PROVIDER_UNAVAILABLE' }
+      };
+    }
+
+    const officialImage =
+      this.extractFaceImage(ninMetadata) ||
+      this.extractFaceImage(bvnMetadata);
+
+    if (!officialImage) {
+      return {
+        decision: 'APPROVE',
+        reason: 'OFFICIAL_FACE_IMAGE_NOT_AVAILABLE',
+        details: { status: 'skipped', reason: 'OFFICIAL_FACE_IMAGE_NOT_AVAILABLE' }
+      };
+    }
+
+    if (!this.isHttpUrl(officialImage)) {
+      return {
+        decision: 'APPROVE',
+        reason: 'OFFICIAL_IMAGE_UNSUPPORTED_FORMAT',
+        details: { status: 'skipped', reason: 'OFFICIAL_IMAGE_UNSUPPORTED_FORMAT' }
+      };
+    }
+
+    const compared = await this.provider.compareFace({
+      image1: selfieUrl,
+      image2: officialImage
+    });
+    const matchScore = Math.round(compared.confidence);
+    const verification = await this.recordVerification({
+      userId,
+      type: KycVerificationType.GOVERNMENT_ID,
+      provider: this.provider.name,
+      reference: compared.reference,
+      matchScore,
+      status: compared.match ? KycVerificationStatus.VERIFIED : KycVerificationStatus.FAILED,
+      metadata: compared.metadata
+    });
+
+    if (!compared.match) {
+      return {
+        decision: 'MANUAL_REVIEW',
+        reason: 'FACE_MISMATCH',
+        reference: compared.reference,
+        details: {
+          status: 'manual_review',
+          reason: 'FACE_MISMATCH',
+          confidence: compared.confidence,
+          threshold: compared.threshold,
+          verificationId: verification.id
+        }
+      };
+    }
+
+    return {
+      decision: 'APPROVE',
+      reference: compared.reference,
+      details: {
+        status: 'verified',
+        confidence: compared.confidence,
+        threshold: compared.threshold,
+        verificationId: verification.id
+      }
+    };
+  }
+
+  private extractFaceImage(metadata: Record<string, unknown>): string | null {
+    const candidates: unknown[] = [
+      metadata.image,
+      metadata.selfieUrl,
+      metadata.photoUrl,
+      metadata.photo
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim().length > 0) {
+        return candidate.trim();
+      }
+    }
+    return null;
+  }
+
+  private isHttpUrl(value: string): boolean {
+    try {
+      const parsed = new URL(value);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
   }
 
   private livenessKey(sessionId: string) {

@@ -13,6 +13,7 @@ import { PiiCryptoService } from './pii-crypto.service';
 import { KycProviderStub } from './stubs/kyc-provider.stub';
 import { KYC_PROVIDER } from './kyc.constants';
 import { LicensedKycProvider } from './providers/licensed-kyc.provider';
+import { InterswitchKycProvider } from './providers/interswitch-kyc.provider';
 
 @Module({
   imports: [
@@ -27,17 +28,21 @@ import { LicensedKycProvider } from './providers/licensed-kyc.provider';
     PiiCryptoService,
     KycProviderStub,
     LicensedKycProvider,
+    InterswitchKycProvider,
     {
       provide: KYC_PROVIDER,
       useFactory: (
         configService: ConfigService,
         stubProvider: KycProviderStub,
-        licensedProvider: LicensedKycProvider
+        licensedProvider: LicensedKycProvider,
+        interswitchProvider: InterswitchKycProvider
       ) => {
         const selected = configService.get<string>('integrations.defaultKycProvider', 'licensed');
-        return selected === licensedProvider.name ? licensedProvider : stubProvider;
+        if (selected === licensedProvider.name) return licensedProvider;
+        if (selected === interswitchProvider.name) return interswitchProvider;
+        return stubProvider;
       },
-      inject: [ConfigService, KycProviderStub, LicensedKycProvider]
+      inject: [ConfigService, KycProviderStub, LicensedKycProvider, InterswitchKycProvider]
     }
   ],
   exports: [KycService]

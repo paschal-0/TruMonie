@@ -8,6 +8,7 @@ export class VerifyKycDto {
 
   @IsString()
   @IsNotEmpty()
+  @Length(11, 11)
   nin!: string;
 
   @IsDateString()

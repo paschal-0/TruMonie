@@ -72,6 +72,19 @@ export interface IntegrationsConfig {
     baseUrl: string;
     timeoutMs: number;
   };
+  interswitch: {
+    clientId?: string;
+    clientSecret?: string;
+    oauthBaseUrl: string;
+    oauthTokenPath: string;
+    scope: string;
+    grantType: string;
+    routingBaseUrl: string;
+    bvnVerifyPath: string;
+    ninVerifyPath: string;
+    faceComparePath: string;
+    timeoutMs: number;
+  };
 }
 
 export default () => ({
@@ -166,6 +179,25 @@ export default () => ({
       messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID,
       baseUrl: process.env.TWILIO_BASE_URL || 'https://api.twilio.com',
       timeoutMs: parseInt(process.env.TWILIO_TIMEOUT_MS || '10000', 10)
+    },
+    interswitch: {
+      clientId: process.env.INTERSWITCH_CLIENT_ID,
+      clientSecret: process.env.INTERSWITCH_CLIENT_SECRET,
+      oauthBaseUrl: process.env.INTERSWITCH_OAUTH_BASE_URL || 'https://qa.interswitchng.com',
+      oauthTokenPath: process.env.INTERSWITCH_OAUTH_TOKEN_PATH || '/passport/oauth/token',
+      scope: process.env.INTERSWITCH_SCOPE || 'profile',
+      grantType: process.env.INTERSWITCH_GRANT_TYPE || 'client_credentials',
+      routingBaseUrl:
+        process.env.INTERSWITCH_ROUTING_BASE_URL ||
+        'https://api-marketplace-routing.k8.isw.la/marketplace-routing/api/v1',
+      bvnVerifyPath:
+        process.env.INTERSWITCH_BVN_VERIFY_PATH || '/verify/identity/bvn/verify',
+      ninVerifyPath:
+        process.env.INTERSWITCH_NIN_VERIFY_PATH || '/verify/identity/nin/verify',
+      faceComparePath:
+        process.env.INTERSWITCH_FACE_COMPARE_PATH ||
+        '/verify/identity/face-comparison',
+      timeoutMs: parseInt(process.env.INTERSWITCH_TIMEOUT_MS || '10000', 10)
     }
   } as IntegrationsConfig
 });

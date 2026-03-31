@@ -20,4 +20,14 @@ export interface KycProvider {
     lastName: string;
     dateOfBirth: string;
   }): Promise<{ match: boolean; reference: string; metadata: Record<string, unknown> }>;
+  compareFace?(params: {
+    image1: string;
+    image2: string;
+  }): Promise<{
+    match: boolean;
+    confidence: number;
+    threshold: number;
+    reference: string;
+    metadata: Record<string, unknown>;
+  }>;
 }

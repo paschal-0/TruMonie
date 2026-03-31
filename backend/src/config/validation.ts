@@ -231,6 +231,50 @@ class EnvironmentVariables {
   @IsNumber()
   @IsOptional()
   TWILIO_TIMEOUT_MS?: number;
+
+  @IsString()
+  @IsOptional()
+  INTERSWITCH_CLIENT_ID?: string;
+
+  @IsString()
+  @IsOptional()
+  INTERSWITCH_CLIENT_SECRET?: string;
+
+  @IsString()
+  @IsOptional()
+  INTERSWITCH_OAUTH_BASE_URL?: string;
+
+  @IsString()
+  @IsOptional()
+  INTERSWITCH_OAUTH_TOKEN_PATH?: string;
+
+  @IsString()
+  @IsOptional()
+  INTERSWITCH_SCOPE?: string;
+
+  @IsString()
+  @IsOptional()
+  INTERSWITCH_GRANT_TYPE?: string;
+
+  @IsString()
+  @IsOptional()
+  INTERSWITCH_ROUTING_BASE_URL?: string;
+
+  @IsString()
+  @IsOptional()
+  INTERSWITCH_BVN_VERIFY_PATH?: string;
+
+  @IsString()
+  @IsOptional()
+  INTERSWITCH_NIN_VERIFY_PATH?: string;
+
+  @IsString()
+  @IsOptional()
+  INTERSWITCH_FACE_COMPARE_PATH?: string;
+
+  @IsNumber()
+  @IsOptional()
+  INTERSWITCH_TIMEOUT_MS?: number;
 }
 
 export function validateEnv(config: Record<string, unknown>) {
