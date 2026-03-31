@@ -15,6 +15,7 @@ import { OnboardingEvent } from './entities/onboarding-event.entity';
 import { InternalOtpProvider } from './providers/internal-otp.provider';
 import { LicensedOtpProvider } from './providers/licensed-otp.provider';
 import { TwilioOtpProvider } from './providers/twilio-otp.provider';
+import { ResendOtpProvider } from './providers/resend-otp.provider';
 import { OTP_PROVIDERS } from './otp.constants';
 import { OnboardingEventsService } from './onboarding-events.service';
 import { RiskModule } from '../risk/risk.module';
@@ -46,14 +47,16 @@ import { KycModule } from '../kyc/kyc.module';
     InternalOtpProvider,
     LicensedOtpProvider,
     TwilioOtpProvider,
+    ResendOtpProvider,
     {
       provide: OTP_PROVIDERS,
       useFactory: (
         internalProvider: InternalOtpProvider,
         licensedProvider: LicensedOtpProvider,
-        twilioProvider: TwilioOtpProvider
-      ) => [internalProvider, licensedProvider, twilioProvider],
-      inject: [InternalOtpProvider, LicensedOtpProvider, TwilioOtpProvider]
+        twilioProvider: TwilioOtpProvider,
+        resendProvider: ResendOtpProvider
+      ) => [internalProvider, licensedProvider, twilioProvider, resendProvider],
+      inject: [InternalOtpProvider, LicensedOtpProvider, TwilioOtpProvider, ResendOtpProvider]
     }
   ],
   exports: [AuthService]

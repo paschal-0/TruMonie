@@ -13,8 +13,8 @@ import { AuthStackParamList } from '../../navigation/types';
 export const OnboardingOtpScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList, 'OnboardingOtp'>>();
   const route = useRoute<RouteProp<AuthStackParamList, 'OnboardingOtp'>>();
-  const { phoneDisplay, phoneE164 } = route.params;
-  const hasContext = Boolean(phoneE164);
+  const { email } = route.params;
+  const hasContext = Boolean(email);
 
   const sendOtp = useSendOtp();
   const verifyOtp = useVerifyOtp();
@@ -36,18 +36,18 @@ export const OnboardingOtpScreen: React.FC = () => {
     }
     setLocalError(null);
     if (!hasContext) {
-      setLocalError('Phone session missing. Restart onboarding.');
+      setLocalError('Email session missing. Restart onboarding.');
       return;
     }
     verifyOtp.mutate(
-      { phone: phoneE164, purpose: 'REGISTER', code },
+      { destination: email, purpose: 'REGISTER', code },
       {
         onSuccess: (payload: any) => {
           if (!payload?.verified) {
             setLocalError('OTP verification failed');
             return;
           }
-          navigation.navigate('OnboardingBiodata', { phoneDisplay, phoneE164 });
+          navigation.navigate('OnboardingBiodata', { email });
         }
       }
     );
@@ -57,7 +57,7 @@ export const OnboardingOtpScreen: React.FC = () => {
     if (secondsLeft > 0) return;
     if (!hasContext) return;
     sendOtp.mutate(
-      { phone: phoneE164, purpose: 'REGISTER', channel: 'sms' },
+      { destination: email, purpose: 'REGISTER', channel: 'email' },
       {
         onSuccess: (payload: any) => {
           const next = payload?.resendAfter ?? 60;
@@ -69,8 +69,8 @@ export const OnboardingOtpScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <ThemedText style={styles.title}>Verify Phone</ThemedText>
-      <ThemedText style={styles.subtitle}>OTP sent to {phoneDisplay}</ThemedText>
+      <ThemedText style={styles.title}>Verify Email</ThemedText>
+      <ThemedText style={styles.subtitle}>OTP sent to {email}</ThemedText>
 
       <View style={styles.otpBox}>
         {[0, 1, 2, 3, 4, 5].map((slot) => (

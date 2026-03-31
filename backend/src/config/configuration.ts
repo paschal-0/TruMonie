@@ -72,6 +72,12 @@ export interface IntegrationsConfig {
     baseUrl: string;
     timeoutMs: number;
   };
+  resend: {
+    apiKey?: string;
+    fromEmail?: string;
+    baseUrl: string;
+    timeoutMs: number;
+  };
   interswitch: {
     clientId?: string;
     clientSecret?: string;
@@ -149,7 +155,7 @@ export default () => ({
     defaultKycProvider: process.env.DEFAULT_KYC_PROVIDER || 'licensed',
     defaultFxProvider: process.env.DEFAULT_FX_PROVIDER || 'licensed',
     defaultCardsProvider: process.env.DEFAULT_CARDS_PROVIDER || 'licensed',
-    defaultOtpProvider: process.env.DEFAULT_OTP_PROVIDER || 'licensed',
+    defaultOtpProvider: process.env.DEFAULT_OTP_PROVIDER || 'resend',
     defaultNotificationProvider: process.env.DEFAULT_NOTIFICATION_PROVIDER || 'licensed',
     licensed: {
       baseUrl: process.env.LICENSED_INFRA_BASE_URL,
@@ -179,6 +185,12 @@ export default () => ({
       messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID,
       baseUrl: process.env.TWILIO_BASE_URL || 'https://api.twilio.com',
       timeoutMs: parseInt(process.env.TWILIO_TIMEOUT_MS || '10000', 10)
+    },
+    resend: {
+      apiKey: process.env.RESEND_API_KEY,
+      fromEmail: process.env.RESEND_FROM_EMAIL,
+      baseUrl: process.env.RESEND_BASE_URL || 'https://api.resend.com',
+      timeoutMs: parseInt(process.env.RESEND_TIMEOUT_MS || '10000', 10)
     },
     interswitch: {
       clientId: process.env.INTERSWITCH_CLIENT_ID,

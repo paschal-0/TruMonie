@@ -234,6 +234,22 @@ class EnvironmentVariables {
 
   @IsString()
   @IsOptional()
+  RESEND_API_KEY?: string;
+
+  @IsString()
+  @IsOptional()
+  RESEND_FROM_EMAIL?: string;
+
+  @IsString()
+  @IsOptional()
+  RESEND_BASE_URL?: string;
+
+  @IsNumber()
+  @IsOptional()
+  RESEND_TIMEOUT_MS?: number;
+
+  @IsString()
+  @IsOptional()
   INTERSWITCH_CLIENT_ID?: string;
 
   @IsString()

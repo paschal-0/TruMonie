@@ -1,37 +1,43 @@
 import { useNavigation } from '@react-navigation/native';
-import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, StyleSheet, TextInput, View } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { NumericPad } from '../../components/NumericPad';
-import { ThemedText } from '../../components/Themed';
 import { GradientButton } from '../../components/GradientButton';
+import { ThemedText } from '../../components/Themed';
 import { useSendOtp } from '../../hooks/useAuthActions';
-import { colors, radius } from '../../theme';
-import { formatLocalPhone, normalizePhoneToE164 } from './onboarding';
 import { AuthStackParamList } from '../../navigation/types';
+import { colors, radius } from '../../theme';
+
+function normalizeEmail(input: string): string {
+  return input.trim().toLowerCase();
+}
+
+function isValidEmail(input: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
+}
 
 export const OnboardingPhoneScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList, 'OnboardingPhone'>>();
   const sendOtp = useSendOtp();
-  const [phoneInput, setPhoneInput] = useState('');
+  const [email, setEmail] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const formatted = useMemo(() => formatLocalPhone(phoneInput), [phoneInput]);
-  const canContinue = phoneInput.length === 11 && phoneInput.startsWith('0');
+  const normalizedEmail = normalizeEmail(email);
+  const canContinue = isValidEmail(normalizedEmail);
 
   const onContinue = () => {
-    const e164 = normalizePhoneToE164(phoneInput);
-    if (!e164) {
-      setLocalError('Enter a valid 11-digit Nigerian phone number');
+    if (!canContinue) {
+      setLocalError('Enter a valid email address');
       return;
     }
+
     setLocalError(null);
     sendOtp.mutate(
-      { phone: e164, purpose: 'REGISTER', channel: 'sms' },
+      { destination: normalizedEmail, purpose: 'REGISTER', channel: 'email' },
       {
         onSuccess: () => {
-          navigation.navigate('OnboardingOtp', { phoneDisplay: phoneInput, phoneE164: e164 });
+          navigation.navigate('OnboardingOtp', { email: normalizedEmail });
         }
       }
     );
@@ -41,19 +47,22 @@ export const OnboardingPhoneScreen: React.FC = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <ThemedText style={styles.title}>Create Account</ThemedText>
-        <ThemedText style={styles.subtitle}>Enter your phone number to receive OTP.</ThemedText>
+        <ThemedText style={styles.subtitle}>Enter your email to receive OTP.</ThemedText>
       </View>
 
-      <View style={styles.phoneBox}>
-        <ThemedText style={styles.label}>Phone Number</ThemedText>
-        <ThemedText style={styles.phoneValue}>{formatted || '0___ ___ ____'}</ThemedText>
+      <View style={styles.emailBox}>
+        <ThemedText style={styles.label}>Email Address</ThemedText>
+        <TextInput
+          value={email}
+          onChangeText={setEmail}
+          placeholder="name@example.com"
+          placeholderTextColor={colors.textSecondary}
+          style={styles.input}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
       </View>
-
-      <NumericPad
-        onDigit={(digit) => setPhoneInput((prev) => (prev.length >= 11 ? prev : `${prev}${digit}`))}
-        onBackspace={() => setPhoneInput((prev) => prev.slice(0, -1))}
-        onClear={() => setPhoneInput('')}
-      />
 
       {(localError || sendOtp.error) && (
         <ThemedText style={styles.error}>
@@ -89,23 +98,26 @@ const styles = StyleSheet.create({
     marginTop: 6,
     color: colors.textSecondary
   },
-  phoneBox: {
+  emailBox: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.lg,
     backgroundColor: 'rgba(255,255,255,0.05)',
-    padding: 16
+    padding: 16,
+    gap: 8
   },
   label: {
     fontSize: 12,
     color: colors.textSecondary,
     letterSpacing: 0.6
   },
-  phoneValue: {
-    marginTop: 8,
-    fontSize: 28,
-    letterSpacing: 1.2,
-    fontWeight: '700'
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 12,
+    color: colors.textPrimary,
+    backgroundColor: 'rgba(255,255,255,0.04)'
   },
   error: {
     color: '#ff8f8f',

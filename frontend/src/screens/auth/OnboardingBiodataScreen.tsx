@@ -7,29 +7,31 @@ import { GradientButton } from '../../components/GradientButton';
 import { ThemedText } from '../../components/Themed';
 import { useRegister } from '../../hooks/useAuthActions';
 import { colors, radius } from '../../theme';
-import { buildUsername, generateTempPassword } from './onboarding';
+import { buildUsername, formatLocalPhone, generateTempPassword, normalizePhoneToE164 } from './onboarding';
 import { AuthStackParamList } from '../../navigation/types';
 
 export const OnboardingBiodataScreen: React.FC = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<AuthStackParamList, 'OnboardingBiodata'>>();
   const route = useRoute<RouteProp<AuthStackParamList, 'OnboardingBiodata'>>();
-  const { phoneDisplay, phoneE164 } = route.params;
-  const hasContext = Boolean(phoneE164);
+  const { email } = route.params;
+  const hasContext = Boolean(email);
   const register = useRegister(() => undefined);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
+  const [phoneInput, setPhoneInput] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [usePhoneAsAccountNumber, setUsePhoneAsAccountNumber] = useState(true);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const username = useMemo(() => buildUsername(firstName || 'user', lastName || 'demo'), [firstName, lastName]);
+  const phoneDisplay = useMemo(() => formatLocalPhone(phoneInput), [phoneInput]);
+  const phoneE164 = useMemo(() => normalizePhoneToE164(phoneInput), [phoneInput]);
 
   const continueOnboarding = () => {
     if (!hasContext) {
-      setLocalError('Phone session missing. Restart onboarding.');
+      setLocalError('Email session missing. Restart onboarding.');
       return;
     }
     if (!firstName.trim() || !lastName.trim()) {
@@ -40,15 +42,19 @@ export const OnboardingBiodataScreen: React.FC = () => {
       setLocalError('Date of birth must be YYYY-MM-DD');
       return;
     }
+    if (!phoneE164) {
+      setLocalError('Enter a valid 11-digit Nigerian phone number');
+      return;
+    }
+
     setLocalError(null);
 
     const password = generateTempPassword();
-    const normalizedEmail = email.trim() || `${username}@placeholder.trumonie.app`;
 
     register.mutate(
       {
         phoneNumber: phoneE164,
-        email: normalizedEmail,
+        email,
         username,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -58,6 +64,7 @@ export const OnboardingBiodataScreen: React.FC = () => {
       {
         onSuccess: (payload: any) => {
           navigation.navigate('OnboardingKyc', {
+            email,
             phoneDisplay,
             phoneE164,
             dateOfBirth,
@@ -71,7 +78,7 @@ export const OnboardingBiodataScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <ThemedText style={styles.title}>Basic Details</ThemedText>
-      <ThemedText style={styles.subtitle}>Phone: {phoneDisplay}</ThemedText>
+      <ThemedText style={styles.subtitle}>Verified email: {email}</ThemedText>
 
       <TextInput
         value={firstName}
@@ -88,13 +95,14 @@ export const OnboardingBiodataScreen: React.FC = () => {
         style={styles.input}
       />
       <TextInput
-        value={email}
-        onChangeText={setEmail}
-        placeholder="Email (optional)"
+        value={phoneInput}
+        onChangeText={(value) => setPhoneInput(value.replace(/\D/g, '').slice(0, 11))}
+        placeholder="Phone number (11 digits, e.g. 07031234567)"
         placeholderTextColor={colors.textSecondary}
+        keyboardType="phone-pad"
         style={styles.input}
-        autoCapitalize="none"
       />
+      <ThemedText style={styles.hint}>Phone preview: {phoneDisplay || '0___ ___ ____'}</ThemedText>
       <TextInput
         value={dateOfBirth}
         onChangeText={setDateOfBirth}
@@ -126,7 +134,7 @@ export const OnboardingBiodataScreen: React.FC = () => {
           title="Continue to KYC"
           onPress={continueOnboarding}
           style={styles.cta}
-          disabled={!hasContext}
+          disabled={!hasContext || register.isPending}
         />
       )}
     </View>

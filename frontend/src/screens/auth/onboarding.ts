@@ -1,4 +1,5 @@
 export interface OnboardingDraft {
+  email: string;
   phoneDisplay: string;
   phoneE164: string;
   dateOfBirth: string;

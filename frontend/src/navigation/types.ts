@@ -5,12 +5,10 @@ export type AuthStackParamList = {
   Login: undefined;
   OnboardingPhone: undefined;
   OnboardingOtp: {
-    phoneDisplay: string;
-    phoneE164: string;
+    email: string;
   };
   OnboardingBiodata: {
-    phoneDisplay: string;
-    phoneE164: string;
+    email: string;
   };
   OnboardingKyc: OnboardingDraft;
   OnboardingLiveness: OnboardingDraft;
