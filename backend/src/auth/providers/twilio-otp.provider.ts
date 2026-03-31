@@ -47,7 +47,7 @@ export class TwilioOtpProvider implements OtpProvider {
     }
 
     const body = new URLSearchParams();
-    body.set('To', params.to);
+    body.set('To', this.normalizeSmsDestination(params.to));
     body.set('Body', `Your TruMonie OTP is ${params.code}. It expires in 5 minutes.`);
     if (messagingServiceSid) {
       body.set('MessagingServiceSid', messagingServiceSid);
@@ -75,7 +75,7 @@ export class TwilioOtpProvider implements OtpProvider {
       const parsed = text ? (JSON.parse(text) as TwilioMessageResponse) : {};
       if (!response.ok) {
         throw new BadGatewayException(
-          `Twilio OTP request failed: ${response.status} ${response.statusText}`
+          `Twilio OTP request failed: ${response.status} ${response.statusText}${parsed.error_code ? ` (code: ${parsed.error_code})` : ''}${parsed.error_message ? ` - ${parsed.error_message}` : ''}`
         );
       }
       return {
@@ -93,5 +93,24 @@ export class TwilioOtpProvider implements OtpProvider {
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  private normalizeSmsDestination(destination: string): string {
+    const raw = destination.trim();
+    if (raw.startsWith('+')) {
+      return raw;
+    }
+
+    const digits = raw.replace(/\D/g, '');
+    if (digits.startsWith('0') && digits.length === 11) {
+      return `+234${digits.slice(1)}`;
+    }
+    if (digits.startsWith('234') && digits.length === 13) {
+      return `+${digits}`;
+    }
+    if (digits.length === 10) {
+      return `+234${digits}`;
+    }
+    return raw;
   }
 }
