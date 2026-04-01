@@ -34,4 +34,25 @@ export class Account extends BaseEntity {
 
   @Column({ type: 'bigint', default: '0' })
   balanceMinor!: string;
+
+  @Column({ type: 'bigint', default: '0' })
+  availableBalanceMinor!: string;
+
+  @Column({ type: 'bigint', default: '0' })
+  ledgerBalanceMinor!: string;
+
+  @Column({ type: 'integer', default: 1 })
+  tier!: number;
+
+  @Column({ type: 'bigint', default: '0' })
+  dailyLimitMinor!: string;
+
+  @Column({ type: 'bigint', nullable: true })
+  maxBalanceMinor!: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  frozenReason!: string | null;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  frozenAt!: Date | null;
 }

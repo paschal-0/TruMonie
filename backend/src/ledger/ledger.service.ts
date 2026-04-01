@@ -1,21 +1,31 @@
 import {
   BadRequestException,
-  ConflictException,
+  HttpException,
+  HttpStatus,
+  Inject,
   Injectable,
   InternalServerErrorException,
-  Logger,
-  NotFoundException
+  Logger
 } from '@nestjs/common';
 import { DataSource, QueryRunner } from 'typeorm';
 
+import { REDIS_CLIENT } from '../redis/redis.module';
 import { Account } from './entities/account.entity';
 import { JournalEntry } from './entities/journal-entry.entity';
 import { JournalLine } from './entities/journal-line.entity';
+import {
+  WalletTransaction,
+  WalletTransactionStatus,
+  WalletTransactionType
+} from './entities/wallet-transaction.entity';
 import { EntryDirection } from './enums/entry-direction.enum';
+import { AccountStatus } from './enums/account-status.enum';
 import { AccountType } from './enums/account-type.enum';
 import { Currency } from './enums/currency.enum';
 import { JournalStatus } from './enums/journal-status.enum';
 import { addMinor, ensureNonNegative, subtractMinor } from './utils/amount';
+import { WalletErrorCode, WalletException } from './wallet.errors';
+import { WalletEventsService } from './wallet-events.service';
 
 interface LedgerLineInput {
   accountId: string;
@@ -23,6 +33,13 @@ interface LedgerLineInput {
   amountMinor: string;
   currency: Currency;
   memo?: string;
+  category?: string;
+  channel?: string;
+  sessionId?: string;
+  status?: WalletTransactionStatus;
+  feeMinor?: string;
+  counterparty?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
 }
 
 interface PostEntryParams {
@@ -49,7 +66,14 @@ interface TransferParams {
 export class LedgerService {
   private readonly logger = new Logger(LedgerService.name);
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly walletEventsService: WalletEventsService,
+    @Inject(REDIS_CLIENT)
+    private readonly redisClient: {
+      set: (key: string, value: string) => Promise<'OK' | null>;
+    }
+  ) {}
 
   async transfer(params: TransferParams) {
     const reference = `TRF-${Date.now()}`;
@@ -58,13 +82,17 @@ export class LedgerService {
         accountId: params.sourceAccountId,
         direction: EntryDirection.DEBIT,
         amountMinor: params.amountMinor,
-        currency: params.currency
+        currency: params.currency,
+        category: 'TRANSFER',
+        status: WalletTransactionStatus.SUCCESS
       },
       {
         accountId: params.destinationAccountId,
         direction: EntryDirection.CREDIT,
         amountMinor: params.amountMinor,
-        currency: params.currency
+        currency: params.currency,
+        category: 'TRANSFER',
+        status: WalletTransactionStatus.SUCCESS
       }
     ];
 
@@ -73,13 +101,17 @@ export class LedgerService {
         accountId: params.sourceAccountId,
         direction: EntryDirection.DEBIT,
         amountMinor: params.feeAmountMinor,
-        currency: params.currency
+        currency: params.currency,
+        category: 'FEE',
+        status: WalletTransactionStatus.SUCCESS
       });
       lines.push({
         accountId: params.feeAccountId,
         direction: EntryDirection.CREDIT,
         amountMinor: params.feeAmountMinor,
-        currency: params.currency
+        currency: params.currency,
+        category: 'FEE',
+        status: WalletTransactionStatus.SUCCESS
       });
     }
 
@@ -115,6 +147,13 @@ export class LedgerService {
         params.lines.map((l) => l.accountId),
         queryRunner
       );
+      const walletBalanceUpdates: Array<{
+        userId: string;
+        walletId: string;
+        balanceMinor: string;
+        availableBalanceMinor: string;
+        ledgerBalanceMinor: string;
+      }> = [];
 
       const entry = queryRunner.manager.create(JournalEntry, {
         reference: params.reference,
@@ -125,22 +164,35 @@ export class LedgerService {
       });
       await queryRunner.manager.save(entry);
 
-      for (const line of params.lines) {
+      for (let lineIndex = 0; lineIndex < params.lines.length; lineIndex += 1) {
+        const line = params.lines[lineIndex];
         const account = accounts.get(line.accountId);
         if (!account) {
-          throw new NotFoundException(`Account ${line.accountId} not found`);
+          throw new WalletException(
+            WalletErrorCode.WALLET_NOT_FOUND,
+            `Account ${line.accountId} not found`,
+            HttpStatus.NOT_FOUND
+          );
         }
         if (account.currency !== line.currency) {
           throw new BadRequestException('Currency mismatch for account');
         }
-        if (account.status !== 'ACTIVE') {
-          throw new BadRequestException(`Account ${account.id} is not active`);
+        if (account.status !== AccountStatus.ACTIVE || account.frozenAt) {
+          throw new WalletException(
+            WalletErrorCode.WALLET_INACTIVE,
+            `Account ${account.id} is not active`,
+            HttpStatus.FORBIDDEN
+          );
         }
 
-        account.balanceMinor = this.applyLineToBalance(account, line);
+        const balanceBeforeMinor = account.balanceMinor;
+        const balanceAfterMinor = this.applyLineToBalance(account, line);
         if (params.enforceNonNegative) {
-          ensureNonNegative(account.balanceMinor, `Account ${account.id} balance`);
+          ensureNonNegative(balanceAfterMinor, `Account ${account.id} balance`);
         }
+        account.balanceMinor = balanceAfterMinor;
+        account.availableBalanceMinor = balanceAfterMinor;
+        account.ledgerBalanceMinor = balanceAfterMinor;
 
         const journalLine = queryRunner.manager.create(JournalLine, {
           journalEntryId: entry.id,
@@ -153,10 +205,44 @@ export class LedgerService {
           memo: line.memo ?? null
         });
         await queryRunner.manager.save(journalLine);
+
+        if (account.userId && this.shouldRecordWalletTransaction(account.type)) {
+          const walletTx = queryRunner.manager.create(WalletTransaction, {
+            reference: `${entry.reference}-${lineIndex + 1}`,
+            walletId: account.id,
+            userId: account.userId,
+            type:
+              line.direction === EntryDirection.CREDIT
+                ? WalletTransactionType.CREDIT
+                : WalletTransactionType.DEBIT,
+            category: (line.category ?? this.defaultCategory(params.description)).toUpperCase(),
+            amountMinor: line.amountMinor,
+            feeMinor: line.feeMinor ?? '0',
+            status: line.status ?? WalletTransactionStatus.SUCCESS,
+            description: line.memo ?? params.description ?? 'Wallet transaction',
+            counterparty: line.counterparty ?? null,
+            balanceBeforeMinor,
+            balanceAfterMinor,
+            channel: line.channel ?? this.readStringFromMetadata(params.metadata, 'channel'),
+            sessionId: line.sessionId ?? this.readStringFromMetadata(params.metadata, 'sessionId'),
+            metadata: this.mergeMetadata(params.metadata, line.metadata),
+            postedAt: new Date()
+          });
+          await queryRunner.manager.save(walletTx);
+          walletBalanceUpdates.push({
+            userId: account.userId,
+            walletId: account.id,
+            balanceMinor: account.balanceMinor,
+            availableBalanceMinor: account.availableBalanceMinor,
+            ledgerBalanceMinor: account.ledgerBalanceMinor
+          });
+        }
+
         await queryRunner.manager.save(account);
       }
 
       await queryRunner.commitTransaction();
+      await this.publishBalanceUpdates(walletBalanceUpdates);
       this.logger.log(`Posted journal entry ${entry.reference}`);
       return entry;
     } catch (error: unknown) {
@@ -166,9 +252,20 @@ export class LedgerService {
           ? (error as { code?: string }).code
           : undefined;
       if (dbErrorCode === '23505') {
-        throw new ConflictException('Reference or idempotency key already used');
+        throw new WalletException(
+          WalletErrorCode.DUPLICATE_IDEMPOTENCY,
+          'Reference or idempotency key already used',
+          HttpStatus.CONFLICT
+        );
       }
-      throw error instanceof BadRequestException || error instanceof NotFoundException
+      if (error instanceof BadRequestException && error.message.includes('would become negative')) {
+        throw new WalletException(
+          WalletErrorCode.INSUFFICIENT_FUNDS,
+          'Insufficient funds',
+          HttpStatus.BAD_REQUEST
+        );
+      }
+      throw error instanceof HttpException
         ? error
         : new InternalServerErrorException(
             error instanceof Error ? error.message : 'Unexpected ledger error'
@@ -191,11 +288,16 @@ export class LedgerService {
   }
 
   private async fetchAccountsWithLock(accountIds: string[], queryRunner: QueryRunner) {
+    const uniqueIds = [...new Set(accountIds)];
+    for (const accountId of uniqueIds) {
+      await queryRunner.query('SELECT pg_advisory_xact_lock(hashtext($1))', [accountId]);
+    }
+
     const accounts = await queryRunner.manager
       .getRepository(Account)
       .createQueryBuilder('account')
       .setLock('pessimistic_write')
-      .where('account.id IN (:...ids)', { ids: accountIds })
+      .where('account.id IN (:...ids)', { ids: uniqueIds })
       .getMany();
 
     const map = new Map<string, Account>();
@@ -210,6 +312,81 @@ export class LedgerService {
       return addMinor(account.balanceMinor, amount);
     }
     return subtractMinor(account.balanceMinor, amount);
+  }
+
+  private shouldRecordWalletTransaction(type: AccountType): boolean {
+    return type === AccountType.WALLET_MAIN || type === AccountType.SAVINGS;
+  }
+
+  private defaultCategory(description?: string): string {
+    if (!description) return 'TRANSFER';
+    const normalized = description.toLowerCase();
+    if (normalized.includes('fund')) return 'FUNDING';
+    if (normalized.includes('payout') || normalized.includes('bank transfer')) return 'PAYOUT';
+    if (normalized.includes('fee')) return 'FEE';
+    return 'TRANSFER';
+  }
+
+  private readStringFromMetadata(
+    metadata: Record<string, unknown> | undefined,
+    key: string
+  ): string | null {
+    const value = metadata?.[key];
+    return typeof value === 'string' ? value : null;
+  }
+
+  private mergeMetadata(
+    entryMetadata: Record<string, unknown> | undefined,
+    lineMetadata: Record<string, unknown> | undefined
+  ): Record<string, unknown> | null {
+    const merged = {
+      ...(entryMetadata ?? {}),
+      ...(lineMetadata ?? {})
+    };
+    return Object.keys(merged).length > 0 ? merged : null;
+  }
+
+  private async publishBalanceUpdates(
+    updates: Array<{
+      userId: string;
+      walletId: string;
+      balanceMinor: string;
+      availableBalanceMinor: string;
+      ledgerBalanceMinor: string;
+    }>
+  ) {
+    if (updates.length === 0) return;
+    const latest = new Map<string, (typeof updates)[number]>();
+    updates.forEach((update) => latest.set(update.walletId, update));
+
+    for (const update of latest.values()) {
+      try {
+        await this.redisClient.set(
+          `wallet:balance:${update.walletId}`,
+          JSON.stringify({
+            balanceMinor: update.balanceMinor,
+            availableBalanceMinor: update.availableBalanceMinor,
+            ledgerBalanceMinor: update.ledgerBalanceMinor
+          })
+        );
+        await this.walletEventsService.publish({
+          userId: update.userId,
+          walletId: update.walletId,
+          eventType: 'BALANCE_UPDATED',
+          payload: {
+            balanceMinor: update.balanceMinor,
+            availableBalanceMinor: update.availableBalanceMinor,
+            ledgerBalanceMinor: update.ledgerBalanceMinor
+          }
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Failed to publish balance update for wallet=${update.walletId}: ${
+            error instanceof Error ? error.message : 'unknown error'
+          }`
+        );
+      }
+    }
   }
 
   private normalBalanceFor(type: AccountType): EntryDirection {

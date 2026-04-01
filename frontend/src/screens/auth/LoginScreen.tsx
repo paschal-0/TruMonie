@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { GradientButton } from '../../components/GradientButton';
@@ -99,11 +99,25 @@ export const LoginScreen: React.FC = () => {
       { destination: email, purpose: 'LOGIN', code: otpCode },
       {
         onSuccess: async (payload: any) => {
-          if (!payload?.verified || !payload?.accessToken || !payload?.refreshToken) {
-            setOtpLocalError('OTP login failed');
+          if (!payload?.verified) {
+            if (typeof payload?.remainingAttempts === 'number') {
+              setOtpLocalError(`Invalid OTP. Remaining attempts: ${payload.remainingAttempts}`);
+              return;
+            }
+            if (typeof payload?.lockedFor === 'number') {
+              setOtpLocalError(`OTP locked. Retry in ${payload.lockedFor}s`);
+              return;
+            }
+            setOtpLocalError('OTP verification failed');
             return;
           }
-          await login({ accessToken: payload.accessToken, refreshToken: payload.refreshToken });
+          const accessToken = payload?.accessToken ?? payload?.tokens?.accessToken;
+          const refreshToken = payload?.refreshToken ?? payload?.tokens?.refreshToken;
+          if (!accessToken || !refreshToken) {
+            setOtpLocalError('OTP verified but no session tokens were returned. Update backend deployment.');
+            return;
+          }
+          await login({ accessToken, refreshToken });
         }
       }
     );
@@ -138,7 +152,12 @@ export const LoginScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator
+    >
       <ThemedText style={styles.heading}>Login</ThemedText>
       <ThemedText style={styles.sub}>Use password login, or biometrics if you enabled it earlier.</ThemedText>
 
@@ -235,12 +254,22 @@ export const LoginScreen: React.FC = () => {
           )}
         </>
       )}
-    </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 18, gap: 12, justifyContent: 'center', backgroundColor: colors.bg },
+  screen: {
+    flex: 1,
+    backgroundColor: colors.bg
+  },
+  container: {
+    flexGrow: 1,
+    padding: 18,
+    gap: 12,
+    paddingTop: 42,
+    paddingBottom: 36
+  },
   heading: { fontSize: 28, fontWeight: '800', marginBottom: 6, color: colors.textPrimary },
   sub: { color: colors.textSecondary, marginBottom: 12 },
   input: {

@@ -49,7 +49,9 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
       return {
         code:
-          typeof error === 'string'
+          typeof payload.code === 'string'
+            ? payload.code
+            : typeof error === 'string'
             ? error.toUpperCase().replace(/\s+/g, '_')
             : this.codeForStatus(status),
         message: Array.isArray(message) ? 'Validation failed' : String(message ?? 'Request failed'),

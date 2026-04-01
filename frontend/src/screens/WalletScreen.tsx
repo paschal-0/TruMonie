@@ -331,6 +331,11 @@ export const WalletScreen: React.FC = () => {
                 <ThemedText style={styles.pillValue}>
                   {formatMinor(wallet.balanceMinor, wallet.currency)}
                 </ThemedText>
+                {wallet.availableBalanceMinor !== undefined ? (
+                  <ThemedText style={styles.accountNumber}>
+                    Available: {formatMinor(wallet.availableBalanceMinor, wallet.currency)}
+                  </ThemedText>
+                ) : null}
                 {wallet.accountNumber ? (
                   <ThemedText style={styles.accountNumber}>Acct: {wallet.accountNumber}</ThemedText>
                 ) : null}

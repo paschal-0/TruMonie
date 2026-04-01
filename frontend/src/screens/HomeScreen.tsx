@@ -10,7 +10,7 @@ import { GradientButton } from '../components/GradientButton';
 import { colors, radius } from '../theme';
 import { useAuth } from '../providers/AuthProvider';
 import { useWallets } from '../hooks/useWallets';
-import { useWalletStatement } from '../hooks/useWalletStatement';
+import { useWalletTransactions } from '../hooks/useWalletTransactions';
 import { useSavingsVaults } from '../hooks/useSavingsVaults';
 import { useProfile } from '../hooks/useProfile';
 import { useNotificationUnreadCount } from '../hooks/useNotifications';
@@ -74,7 +74,7 @@ export const HomeScreen: React.FC = () => {
 
   const ngnWallet = wallets?.find((wallet: any) => wallet.currency === 'NGN');
   const accountId = ngnWallet?.id ?? wallets?.[0]?.id;
-  const { data: statement } = useWalletStatement(session?.accessToken, accountId, 5);
+  const { data: transactions } = useWalletTransactions(session?.accessToken, accountId, 5);
 
   const displayName = profile?.firstName ?? profile?.username ?? 'there';
 
@@ -103,7 +103,7 @@ export const HomeScreen: React.FC = () => {
     [vaults]
   );
 
-  const recentLines = statement?.lines ?? [];
+  const recentLines = transactions?.items ?? [];
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -200,7 +200,7 @@ export const HomeScreen: React.FC = () => {
           </GlassCard>
         ) : (
           recentLines.map((line: any) => {
-            const positive = String(line.direction).toUpperCase() === 'CREDIT';
+            const positive = String(line.type).toUpperCase() === 'CREDIT';
             const icon = positive ? 'arrow-down-outline' : 'arrow-up-outline';
             const bg = positive ? '#0d7d4e' : '#b23b3b';
             return (
@@ -214,13 +214,13 @@ export const HomeScreen: React.FC = () => {
                       {positive ? 'Credit entry' : 'Debit entry'}
                     </ThemedText>
                     <ThemedText style={styles.recentMeta}>
-                      {line.memo || formatDate(line.createdAt)}
+                      {line.description || formatDate(line.postedAt)}
                     </ThemedText>
                   </View>
                 </View>
                 <ThemedText style={[styles.recentAmount, positive ? styles.amountPositive : undefined]}>
                   {positive ? '+' : '-'}
-                  {formatMinor(line.amountMinor, line.currency)}
+                  {formatMinor(line.amountMinor, 'NGN')}
                 </ThemedText>
               </GlassCard>
             );

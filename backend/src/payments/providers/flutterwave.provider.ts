@@ -21,11 +21,16 @@ export class FlutterwaveProvider implements PaymentProvider {
     return currency === Currency.NGN;
   }
 
-  async createVirtualAccount(userId: string) {
+  async createVirtualAccount(request: { userId: string; currency: string; accountName?: string }) {
     // TODO: integrate Flutterwave virtual account API.
-    this.logger.warn(`[Flutterwave STUB] create VA for user ${userId}`);
-    return { accountNumber: '1000000000', bankName: 'Stubwave Bank' };
-    }
+    this.logger.warn(`[Flutterwave STUB] create VA for user ${request.userId}`);
+    return {
+      accountNumber: '1000000000',
+      bankName: 'Stubwave Bank',
+      bankCode: '214',
+      accountName: request.accountName ?? 'TruMonie User'
+    };
+  }
 
   async initiatePayout(
     userId: string,

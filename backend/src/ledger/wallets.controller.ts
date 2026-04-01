@@ -1,14 +1,22 @@
-import { BadRequestException, Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Param,
+  Query,
+  UseGuards
+} from '@nestjs/common';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { AccountsService } from './accounts.service';
 import { AccountsPolicy } from './accounts.policy';
+import { WalletTransactionsQueryDto } from './dto/wallet-transactions-query.dto';
 import { Currency } from './enums/currency.enum';
 
 @UseGuards(JwtAuthGuard)
-@Controller('wallets')
+@Controller(['wallets', 'wallet'])
 export class WalletsController {
   constructor(
     private readonly accountsService: AccountsService,
@@ -37,6 +45,26 @@ export class WalletsController {
     const skip = parseInt(offset ?? '0', 10);
     await this.accountsPolicy.assertOwnership(user.id, accountId);
     return this.accountsService.getStatement(accountId, take, skip);
+  }
+
+  @Get(':accountId/transactions')
+  async transactions(
+    @CurrentUser() user: User,
+    @Param('accountId') accountId: string,
+    @Query() query: WalletTransactionsQueryDto
+  ) {
+    await this.accountsPolicy.assertOwnership(user.id, accountId);
+    return this.accountsService.getTransactions(accountId, {
+      startDate: query.start_date,
+      endDate: query.end_date,
+      category: query.category,
+      status: query.status,
+      type: query.type,
+      minAmountMinor: query.min_amount,
+      maxAmountMinor: query.max_amount,
+      page: query.page,
+      perPage: query.per_page
+    });
   }
 
   private normalizeCurrency(value?: string): Currency {

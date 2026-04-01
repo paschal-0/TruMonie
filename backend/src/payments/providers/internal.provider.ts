@@ -11,8 +11,13 @@ export class InternalPaymentProvider implements PaymentProvider {
     return true;
   }
 
-  async createVirtualAccount(_userId: string) {
-    return { accountNumber: 'INTERNAL_LEDGER', bankName: 'Internal Settlement' };
+  async createVirtualAccount(request: { userId: string; currency: string; accountName?: string }) {
+    return {
+      accountNumber: 'INTERNAL_LEDGER',
+      bankName: 'Internal Settlement',
+      bankCode: '000',
+      accountName: request.accountName ?? `Wallet ${request.userId}`
+    };
   }
 
   async initiatePayout(

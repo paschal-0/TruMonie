@@ -38,11 +38,17 @@ export class LicensedPaymentProvider implements PaymentProvider {
     return true;
   }
 
-  async createVirtualAccount(userId: string) {
-    const data = await this.request<LicensedPayload>('POST', this.path('paymentsVirtualAccountPath'), { userId });
+  async createVirtualAccount(request: { userId: string; currency: string; accountName?: string }) {
+    const data = await this.request<LicensedPayload>('POST', this.path('paymentsVirtualAccountPath'), {
+      userId: request.userId,
+      currency: request.currency,
+      accountName: request.accountName
+    });
     return {
       accountNumber: data?.accountNumber ?? data?.data?.accountNumber ?? '',
-      bankName: data?.bankName ?? data?.data?.bankName ?? 'Licensed Bank'
+      bankName: data?.bankName ?? data?.data?.bankName ?? 'Licensed Bank',
+      bankCode: data?.bankCode ?? data?.data?.bankCode ?? '000',
+      accountName: data?.accountName ?? data?.data?.accountName ?? request.accountName
     };
   }
 

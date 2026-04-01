@@ -66,6 +66,10 @@ class EnvironmentVariables {
 
   @IsString()
   @IsOptional()
+  WALLET_NUBAN_BANK_CODE?: string;
+
+  @IsString()
+  @IsOptional()
   KYC_VENDOR_API_KEY?: string;
 
   @IsString()

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  HttpStatus,
   Inject,
   Injectable,
   NotFoundException,
@@ -11,9 +12,12 @@ import { Repository } from 'typeorm';
 
 import { AccountsPolicy } from '../ledger/accounts.policy';
 import { AccountsService } from '../ledger/accounts.service';
+import { VirtualAccount } from '../ledger/entities/virtual-account.entity';
+import { WalletTransactionStatus } from '../ledger/entities/wallet-transaction.entity';
 import { LedgerService } from '../ledger/ledger.service';
 import { Currency } from '../ledger/enums/currency.enum';
 import { EntryDirection } from '../ledger/enums/entry-direction.enum';
+import { WalletErrorCode, WalletException } from '../ledger/wallet.errors';
 import { PaymentProvider } from './interfaces/payment-provider.interface';
 import { FundingStatus, FundingTransaction } from './entities/funding-transaction.entity';
 import { Payout, PayoutStatus } from './entities/payout.entity';
@@ -41,6 +45,8 @@ export class PaymentsService {
     private readonly payoutRepo: Repository<Payout>,
     @InjectRepository(WebhookEvent)
     private readonly webhookRepo: Repository<WebhookEvent>,
+    @InjectRepository(VirtualAccount)
+    private readonly virtualAccountRepo: Repository<VirtualAccount>,
     @Inject(PAYMENT_PROVIDERS) providers: PaymentProvider[]
   ) {
     this.providers = providers.reduce<Record<string, PaymentProvider>>((acc, provider) => {
@@ -91,18 +97,29 @@ export class PaymentsService {
       reference: `PAYOUT-${Date.now()}`,
       description: narration ?? 'Payout',
       enforceNonNegative: true,
+      metadata: {
+        category: 'PAYOUT',
+        channel: 'BANK_TRANSFER',
+        status: 'PENDING'
+      },
       lines: [
         {
           accountId: sourceAccountId,
           direction: EntryDirection.DEBIT,
           amountMinor,
-          currency
+          currency,
+          category: 'PAYOUT',
+          channel: 'BANK_TRANSFER',
+          status: WalletTransactionStatus.PENDING
         },
         {
           accountId: settlementAccountId,
           direction: EntryDirection.CREDIT,
           amountMinor,
-          currency
+          currency,
+          category: 'PAYOUT',
+          channel: 'BANK_TRANSFER',
+          status: WalletTransactionStatus.PENDING
         }
       ]
     });
@@ -144,6 +161,164 @@ export class PaymentsService {
     return { bankCode, accountNumber, accountName: 'Stubbed Name' };
   }
 
+  async createVirtualAccount(params: {
+    userId: string;
+    walletId: string;
+    currency: string;
+    providerName?: string;
+  }) {
+    const provider = this.resolveProvider(params.providerName);
+    const normalizedCurrency = params.currency.toUpperCase();
+    if (!['NGN', 'USD', 'EUR', 'GBP'].includes(normalizedCurrency)) {
+      throw new BadRequestException('currency must be NGN, USD, EUR, or GBP');
+    }
+    const wallet = await this.accountsService.findById(params.walletId);
+    if (!wallet || wallet.userId !== params.userId) {
+      throw new WalletException(
+        WalletErrorCode.WALLET_NOT_FOUND,
+        'Wallet not found',
+        HttpStatus.NOT_FOUND
+      );
+    }
+    if (normalizedCurrency !== wallet.currency && !['EUR', 'GBP'].includes(normalizedCurrency)) {
+      throw new BadRequestException(
+        `Requested currency ${normalizedCurrency} is not supported by this wallet`
+      );
+    }
+    const existing = await this.virtualAccountRepo.findOne({
+      where: {
+        walletId: params.walletId,
+        currency: normalizedCurrency,
+        provider: provider.name,
+        status: 'ACTIVE'
+      },
+      order: { createdAt: 'DESC' }
+    });
+    if (existing) {
+      return existing;
+    }
+
+    const user = await this.usersService.findById(params.userId);
+    if (!user) {
+      throw new NotFoundException('User not found for virtual account issuance');
+    }
+    const accountName = `${user.firstName} ${user.lastName}`.trim().toUpperCase();
+    const providerRes = await provider.createVirtualAccount({
+      userId: params.userId,
+      currency: normalizedCurrency,
+      accountName
+    });
+
+    const created = await this.virtualAccountRepo.save(
+      this.virtualAccountRepo.create({
+        walletId: params.walletId,
+        userId: params.userId,
+        accountNumber: providerRes.accountNumber,
+        accountName: providerRes.accountName ?? accountName,
+        bankName: providerRes.bankName,
+        bankCode: providerRes.bankCode ?? '000',
+        currency: normalizedCurrency,
+        provider: provider.name,
+        status: 'ACTIVE'
+      })
+    );
+
+    return created;
+  }
+
+  async fundWallet(params: {
+    userId: string;
+    walletId: string;
+    amountMinor: string;
+    currency: Currency;
+    channel: 'BANK_TRANSFER' | 'CARD' | 'USSD' | 'VIRTUAL_ACCOUNT';
+    cardToken?: string;
+    idempotencyKey?: string;
+    providerName?: string;
+  }) {
+    const provider = this.resolveProvider(params.providerName);
+    this.assertProviderSupportsCurrency(provider, params.currency);
+    await this.accountsPolicy.assertOwnership(params.userId, params.walletId);
+
+    if (params.channel === 'CARD' && !params.cardToken) {
+      throw new BadRequestException('cardToken is required for CARD funding');
+    }
+
+    const wallet = await this.accountsService.findById(params.walletId);
+    if (!wallet || wallet.userId !== params.userId) {
+      throw new WalletException(
+        WalletErrorCode.WALLET_NOT_FOUND,
+        'Wallet not found',
+        HttpStatus.NOT_FOUND
+      );
+    }
+
+    const user = await this.usersService.findById(params.userId);
+    if (!user) {
+      throw new NotFoundException('User not found for funding');
+    }
+    this.limitsService.assertWithinMaxBalance(user.limitTier, wallet.balanceMinor, params.amountMinor);
+    await this.circuitBreakerService.assertWithinNewDeviceCap(params.userId, params.amountMinor);
+
+    const reference = `FND-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const ledgerEntry = await this.ledgerService.postEntry({
+      reference,
+      idempotencyKey: params.idempotencyKey ?? reference,
+      description: `Wallet funding via ${params.channel}`,
+      enforceNonNegative: false,
+      metadata: {
+        category: 'FUNDING',
+        channel: params.channel,
+        status: 'SUCCESS'
+      },
+      lines: [
+        {
+          accountId: this.getSettlementAccount(provider.name, params.currency),
+          direction: EntryDirection.DEBIT,
+          amountMinor: params.amountMinor,
+          currency: params.currency,
+          memo: `Funding settlement (${params.channel})`,
+          category: 'FUNDING',
+          channel: params.channel,
+          status: WalletTransactionStatus.SUCCESS
+        },
+        {
+          accountId: wallet.id,
+          direction: EntryDirection.CREDIT,
+          amountMinor: params.amountMinor,
+          currency: params.currency,
+          memo: `Wallet funded via ${params.channel}`,
+          category: 'FUNDING',
+          channel: params.channel,
+          status: WalletTransactionStatus.SUCCESS
+        }
+      ]
+    });
+
+    await this.recordFunding({
+      userId: params.userId,
+      destinationAccountId: wallet.id,
+      amountMinor: params.amountMinor,
+      currency: params.currency,
+      provider: provider.name,
+      reference,
+      metadata: {
+        channel: params.channel,
+        cardToken: params.cardToken ?? null
+      }
+    });
+
+    const refreshedWallet = await this.accountsService.findById(wallet.id);
+
+    return {
+      transaction_id: ledgerEntry.id,
+      reference,
+      amount: Number(params.amountMinor),
+      status: 'SUCCESS',
+      new_balance: Number(refreshedWallet?.balanceMinor ?? wallet.balanceMinor)
+    };
+  }
+
   async creditWallet(params: {
     userId: string;
     amountMinor: string;
@@ -158,10 +333,13 @@ export class PaymentsService {
     const provider = this.resolveProvider(providerName);
     this.assertProviderSupportsCurrency(provider, params.currency);
 
-    const accounts = await this.accountsService.getUserAccounts(params.userId);
-    const wallet = accounts.find((a) => a.currency === params.currency);
+    const wallet = await this.accountsService.findWalletByUserAndCurrency(params.userId, params.currency);
     if (!wallet) {
-      throw new NotFoundException('Wallet not found for user');
+      throw new WalletException(
+        WalletErrorCode.WALLET_NOT_FOUND,
+        'Wallet not found for user',
+        HttpStatus.NOT_FOUND
+      );
     }
 
     const user = await this.usersService.findById(params.userId);
@@ -177,18 +355,29 @@ export class PaymentsService {
       idempotencyKey: params.idempotencyKey ?? params.reference,
       description: params.description ?? 'Wallet funding',
       enforceNonNegative: false,
+      metadata: {
+        category: 'FUNDING',
+        channel: 'WEBHOOK',
+        status: 'SUCCESS'
+      },
       lines: [
         {
           accountId: settlementAccountId,
           direction: EntryDirection.DEBIT,
           amountMinor: params.amountMinor,
-          currency: params.currency
+          currency: params.currency,
+          category: 'FUNDING',
+          channel: 'WEBHOOK',
+          status: WalletTransactionStatus.SUCCESS
         },
         {
           accountId: wallet.id,
           direction: EntryDirection.CREDIT,
           amountMinor: params.amountMinor,
-          currency: params.currency
+          currency: params.currency,
+          category: 'FUNDING',
+          channel: 'WEBHOOK',
+          status: WalletTransactionStatus.SUCCESS
         }
       ]
     });

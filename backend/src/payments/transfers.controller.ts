@@ -1,4 +1,12 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Post, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  ForbiddenException,
+  HttpStatus,
+  Post,
+  UseGuards
+} from '@nestjs/common';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -14,6 +22,7 @@ import { PaymentsService } from './payments.service';
 import { VelocityService } from '../risk/velocity.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CircuitBreakerService } from '../risk/circuit-breaker.service';
+import { WalletErrorCode, WalletException } from '../ledger/wallet.errors';
 
 @UseGuards(JwtAuthGuard)
 @Controller('payments')
@@ -128,7 +137,11 @@ export class TransfersController {
     const accounts = await this.accountsService.getUserAccounts(userId);
     const wallet = accounts.find((a) => a.currency === currency);
     if (!wallet) {
-      throw new BadRequestException('Wallet not found');
+      throw new WalletException(
+        WalletErrorCode.WALLET_NOT_FOUND,
+        'Wallet not found',
+        HttpStatus.NOT_FOUND
+      );
     }
     return wallet;
   }

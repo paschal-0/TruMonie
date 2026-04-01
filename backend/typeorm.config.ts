@@ -23,6 +23,9 @@ import { SavingsVault } from './src/savings/entities/savings-vault.entity';
 import { SavingsTransaction } from './src/savings/entities/savings-transaction.entity';
 import { Card } from './src/cards/entities/card.entity';
 import { Notification } from './src/notifications/entities/notification.entity';
+import { WalletEvent } from './src/ledger/entities/wallet-event.entity';
+import { WalletTransaction } from './src/ledger/entities/wallet-transaction.entity';
+import { VirtualAccount } from './src/ledger/entities/virtual-account.entity';
 
 dotenv.config();
 const config = configuration();
@@ -55,7 +58,10 @@ const dataSource = new DataSource({
     SavingsVault,
     SavingsTransaction,
     Card,
-    Notification
+    Notification,
+    WalletEvent,
+    WalletTransaction,
+    VirtualAccount
   ],
   migrations: ['src/migrations/*.ts'],
   namingStrategy: undefined, // handled in entities; keep default for migrations

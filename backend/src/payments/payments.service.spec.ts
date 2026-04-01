@@ -29,7 +29,19 @@ describe('PaymentsService', () => {
       postEntry: jest.fn().mockResolvedValue({ id: 'ledger-1' })
     };
     const accountsService = {
-      getUserAccounts: jest.fn().mockResolvedValue([{ id: 'wallet-1', currency: Currency.USD }])
+      getUserAccounts: jest.fn().mockResolvedValue([{ id: 'wallet-1', currency: Currency.USD }]),
+      findById: jest.fn().mockResolvedValue({
+        id: 'wallet-1',
+        userId: 'user-1',
+        balanceMinor: '1000',
+        currency: Currency.USD
+      }),
+      findWalletByUserAndCurrency: jest.fn().mockResolvedValue({
+        id: 'wallet-1',
+        userId: 'user-1',
+        balanceMinor: '1000',
+        currency: Currency.USD
+      })
     };
     const accountsPolicy = {
       assertOwnership: jest.fn().mockResolvedValue(undefined)
@@ -69,6 +81,11 @@ describe('PaymentsService', () => {
       create: jest.fn((payload: unknown) => payload),
       save: jest.fn((payload: unknown) => Promise.resolve(payload))
     };
+    const virtualAccountRepo = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn((payload: unknown) => payload),
+      save: jest.fn((payload: unknown) => Promise.resolve(payload))
+    };
 
     const service = new PaymentsService(
       ledgerService as unknown as ConstructorParameters<typeof PaymentsService>[0],
@@ -81,6 +98,7 @@ describe('PaymentsService', () => {
       fundingRepo as unknown as ConstructorParameters<typeof PaymentsService>[7],
       payoutRepo as unknown as ConstructorParameters<typeof PaymentsService>[8],
       webhookRepo as unknown as ConstructorParameters<typeof PaymentsService>[9],
+      virtualAccountRepo as unknown as ConstructorParameters<typeof PaymentsService>[10],
       providers
     );
 

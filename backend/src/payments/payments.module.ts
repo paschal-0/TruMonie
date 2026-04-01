@@ -18,6 +18,8 @@ import { RiskModule } from '../risk/risk.module';
 import { PAYMENT_PROVIDERS } from './payments.constants';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { VirtualAccount } from '../ledger/entities/virtual-account.entity';
+import { WalletFundingController } from './wallet-funding.controller';
 
 @Module({
   imports: [
@@ -26,9 +28,9 @@ import { NotificationsModule } from '../notifications/notifications.module';
     UsersModule,
     RiskModule,
     NotificationsModule,
-    TypeOrmModule.forFeature([Payout, FundingTransaction, WebhookEvent])
+    TypeOrmModule.forFeature([Payout, FundingTransaction, WebhookEvent, VirtualAccount])
   ],
-  controllers: [PaymentsController, TransfersController],
+  controllers: [PaymentsController, TransfersController, WalletFundingController],
   providers: [
     PaymentsService,
     RolesGuard,

@@ -10,6 +10,8 @@ interface FxQuoteResponse {
 function invalidateWalletViews(queryClient: ReturnType<typeof useQueryClient>) {
   void queryClient.invalidateQueries({ queryKey: ['wallets'] });
   void queryClient.invalidateQueries({ queryKey: ['wallets', 'account-number'] });
+  void queryClient.invalidateQueries({ queryKey: ['wallets', 'transactions'] });
+  void queryClient.invalidateQueries({ queryKey: ['wallets', 'statement'] });
   void queryClient.invalidateQueries({ queryKey: ['notifications'] });
   void queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
 }
@@ -26,6 +28,22 @@ export const useBankTransfer = (token?: string) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: any) => apiPost('/payments/bank-transfer', body, token),
+    onSuccess: () => invalidateWalletViews(queryClient)
+  });
+};
+
+export const useWalletFund = (token?: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: any) => apiPost('/wallets/fund', body, token),
+    onSuccess: () => invalidateWalletViews(queryClient)
+  });
+};
+
+export const useCreateVirtualAccount = (token?: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: any) => apiPost('/wallets/virtual-account', body, token),
     onSuccess: () => invalidateWalletViews(queryClient)
   });
 };

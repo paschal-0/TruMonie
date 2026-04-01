@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 
+import { AccountsService } from '../ledger/accounts.service';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -15,6 +16,7 @@ import { addSeconds } from '../utils/time';
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
+    private readonly accountsService: AccountsService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly refreshTokensService: RefreshTokensService
@@ -22,6 +24,10 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     const user = await this.usersService.create(dto);
+    await this.accountsService.ensureUserBaseAccounts(user.id, {
+      accountNumberSource: user.accountNumberSource === 'PHONE' ? 'PHONE' : 'SYSTEM',
+      phoneNumber: user.phoneNumber
+    });
     return {
       user: this.sanitizeUser(user),
       tokens: await this.signTokens(user)

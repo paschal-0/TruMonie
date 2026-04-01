@@ -3,7 +3,16 @@ import { Currency } from '../../ledger/enums/currency.enum';
 export interface PaymentProvider {
   name: string;
   supportsCurrency?(currency: Currency): boolean;
-  createVirtualAccount(userId: string): Promise<{ accountNumber: string; bankName: string }>;
+  createVirtualAccount(request: {
+    userId: string;
+    currency: string;
+    accountName?: string;
+  }): Promise<{
+    accountNumber: string;
+    bankName: string;
+    bankCode?: string;
+    accountName?: string;
+  }>;
   initiatePayout(
     userId: string,
     amountMinor: string,

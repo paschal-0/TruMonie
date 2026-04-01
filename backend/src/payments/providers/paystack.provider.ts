@@ -21,10 +21,15 @@ export class PaystackProvider implements PaymentProvider {
     return currency === Currency.NGN;
   }
 
-  async createVirtualAccount(userId: string) {
+  async createVirtualAccount(request: { userId: string; currency: string; accountName?: string }) {
     // TODO: integrate Paystack virtual account API.
-    this.logger.warn(`[Paystack STUB] create VA for user ${userId}`);
-    return { accountNumber: '0000000000', bankName: 'Stub Bank' };
+    this.logger.warn(`[Paystack STUB] create VA for user ${request.userId}`);
+    return {
+      accountNumber: '0000000000',
+      bankName: 'Stub Bank',
+      bankCode: '058',
+      accountName: request.accountName ?? 'TruMonie User'
+    };
   }
 
   async initiatePayout(

@@ -38,6 +38,10 @@ export interface KycConfig {
   piiKey: string;
 }
 
+export interface WalletConfig {
+  nubanBankCode: string;
+}
+
 export interface IntegrationsConfig {
   defaultPaymentProvider: string;
   defaultBillsProvider: string;
@@ -149,6 +153,9 @@ export default () => ({
     vendorApiKey: process.env.KYC_VENDOR_API_KEY,
     piiKey: process.env.PII_ENCRYPTION_KEY
   } as KycConfig,
+  wallet: {
+    nubanBankCode: process.env.WALLET_NUBAN_BANK_CODE || '340'
+  } as WalletConfig,
   integrations: {
     defaultPaymentProvider: process.env.DEFAULT_PAYMENT_PROVIDER || 'licensed',
     defaultBillsProvider: process.env.DEFAULT_BILLS_PROVIDER || 'licensed',

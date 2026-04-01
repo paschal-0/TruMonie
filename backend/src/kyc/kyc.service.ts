@@ -15,6 +15,7 @@ import { LimitsService } from '../limits/limits.service';
 import { SpendingService } from '../limits/spending.service';
 import { Currency } from '../ledger/enums/currency.enum';
 import { AccountsService } from '../ledger/accounts.service';
+import { WalletEventsService } from '../ledger/wallet-events.service';
 import { UsersService } from '../users/users.service';
 import {
   AccountNumberSource,
@@ -64,6 +65,7 @@ export class KycService {
   constructor(
     private readonly usersService: UsersService,
     private readonly accountsService: AccountsService,
+    private readonly walletEventsService: WalletEventsService,
     private readonly limitsService: LimitsService,
     private readonly spendingService: SpendingService,
     @InjectRepository(UserKycData) private readonly kycRepo: Repository<UserKycData>,
@@ -153,6 +155,16 @@ export class KycService {
       kycStatus: KycStatus.VERIFIED,
       limitTier: LimitTier.TIER1,
       status: UserStatus.ACTIVE
+    });
+    await this.accountsService.syncWalletLimitsForTier(userId, LimitTier.TIER1);
+    await this.walletEventsService.publish({
+      userId,
+      eventType: 'TIER_UPGRADED',
+      payload: {
+        previousTier: user.limitTier,
+        nextTier: LimitTier.TIER1,
+        reason: 'KYC_VERIFIED'
+      }
     });
     await this.accountsService.ensureUserBaseAccounts(userId, {
       accountNumberSource:
@@ -427,6 +439,16 @@ export class KycService {
       limitTier: dto.targetTier,
       kycStatus: KycStatus.VERIFIED,
       status: UserStatus.ACTIVE
+    });
+    await this.accountsService.syncWalletLimitsForTier(userId, dto.targetTier);
+    await this.walletEventsService.publish({
+      userId,
+      eventType: 'TIER_UPGRADED',
+      payload: {
+        previousTier: user.limitTier,
+        nextTier: dto.targetTier,
+        verificationIds: dto.verificationIds
+      }
     });
 
     const profile = this.limitsService.getProfile(dto.targetTier);

@@ -20,10 +20,12 @@ import { OTP_PROVIDERS } from './otp.constants';
 import { OnboardingEventsService } from './onboarding-events.service';
 import { RiskModule } from '../risk/risk.module';
 import { KycModule } from '../kyc/kyc.module';
+import { LedgerModule } from '../ledger/ledger.module';
 
 @Module({
   imports: [
     UsersModule,
+    LedgerModule,
     RiskModule,
     KycModule,
     TypeOrmModule.forFeature([RefreshToken, OnboardingEvent]),
