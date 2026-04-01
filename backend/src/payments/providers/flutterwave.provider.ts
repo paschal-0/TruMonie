@@ -43,7 +43,20 @@ export class FlutterwaveProvider implements PaymentProvider {
     this.logger.warn(
       `[Flutterwave STUB] payout ${amountMinor} ${currency} for user ${userId} to ${destination.accountNumber}`
     );
-    return { providerReference: `FLW-${Date.now()}`, status: 'PENDING' as const };
+    return {
+      providerReference: `FLW-${Date.now()}`,
+      status: 'PENDING' as const,
+      responseCode: '01',
+      responseMessage: 'Status unknown'
+    };
+  }
+
+  async queryTransferStatus(_params: { providerReference?: string; reference: string; sessionId?: string }) {
+    return {
+      status: 'PENDING' as const,
+      responseCode: '01',
+      responseMessage: 'Status unknown'
+    };
   }
 
   verifyWebhookSignature(payload: string, signature: string): boolean {

@@ -178,11 +178,23 @@ class EnvironmentVariables {
 
   @IsString()
   @IsOptional()
+  LICENSED_INFRA_PAYMENTS_STATUS_PATH?: string;
+
+  @IsString()
+  @IsOptional()
   LICENSED_INFRA_BILLS_CATALOG_PATH?: string;
 
   @IsString()
   @IsOptional()
+  LICENSED_INFRA_BILLS_VALIDATE_PATH?: string;
+
+  @IsString()
+  @IsOptional()
   LICENSED_INFRA_BILLS_PURCHASE_PATH?: string;
+
+  @IsString()
+  @IsOptional()
+  LICENSED_INFRA_BILLS_NQR_PAY_PATH?: string;
 
   @IsString()
   @IsOptional()

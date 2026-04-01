@@ -53,7 +53,16 @@ export async function apiPatch<T>(path: string, body: any, token?: string) {
   return apiRequest<T>('PATCH', path, body, token);
 }
 
-async function apiRequest<T>(method: 'GET' | 'POST' | 'PATCH', path: string, body?: any, token?: string) {
+export async function apiDelete<T>(path: string, token?: string) {
+  return apiRequest<T>('DELETE', path, undefined, token);
+}
+
+async function apiRequest<T>(
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  path: string,
+  body?: any,
+  token?: string
+) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {

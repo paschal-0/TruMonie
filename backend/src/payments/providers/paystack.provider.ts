@@ -43,7 +43,20 @@ export class PaystackProvider implements PaymentProvider {
     this.logger.warn(
       `[Paystack STUB] payout ${amountMinor} ${currency} for user ${userId} to ${destination.accountNumber}`
     );
-    return { providerReference: `PSTK-${Date.now()}`, status: 'PENDING' as const };
+    return {
+      providerReference: `PSTK-${Date.now()}`,
+      status: 'PENDING' as const,
+      responseCode: '01',
+      responseMessage: 'Status unknown'
+    };
+  }
+
+  async queryTransferStatus(_params: { providerReference?: string; reference: string; sessionId?: string }) {
+    return {
+      status: 'PENDING' as const,
+      responseCode: '01',
+      responseMessage: 'Status unknown'
+    };
   }
 
   verifyWebhookSignature(payload: string, signature: string): boolean {

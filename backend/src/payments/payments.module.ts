@@ -20,6 +20,10 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { VirtualAccount } from '../ledger/entities/virtual-account.entity';
 import { WalletFundingController } from './wallet-funding.controller';
+import { Transfer } from './entities/transfer.entity';
+import { TransferBeneficiary } from './entities/transfer-beneficiary.entity';
+import { BeneficiariesController, TransfersV2Controller } from './transfers-v2.controller';
+import { TransfersV2Service } from './transfers-v2.service';
 
 @Module({
   imports: [
@@ -28,11 +32,25 @@ import { WalletFundingController } from './wallet-funding.controller';
     UsersModule,
     RiskModule,
     NotificationsModule,
-    TypeOrmModule.forFeature([Payout, FundingTransaction, WebhookEvent, VirtualAccount])
+    TypeOrmModule.forFeature([
+      Payout,
+      FundingTransaction,
+      WebhookEvent,
+      VirtualAccount,
+      Transfer,
+      TransferBeneficiary
+    ])
   ],
-  controllers: [PaymentsController, TransfersController, WalletFundingController],
+  controllers: [
+    PaymentsController,
+    TransfersController,
+    TransfersV2Controller,
+    BeneficiariesController,
+    WalletFundingController
+  ],
   providers: [
     PaymentsService,
+    TransfersV2Service,
     RolesGuard,
     PaystackProvider,
     FlutterwaveProvider,

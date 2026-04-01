@@ -50,24 +50,27 @@ export interface IntegrationsConfig {
   defaultCardsProvider: string;
   defaultOtpProvider: string;
   defaultNotificationProvider: string;
-  licensed: {
-    baseUrl?: string;
-    apiKey?: string;
-    timeoutMs: number;
-    webhookSecret?: string;
-    paymentsVirtualAccountPath: string;
-    paymentsPayoutPath: string;
-    paymentsResolvePath: string;
-    billsCatalogPath: string;
-    billsPurchasePath: string;
-    kycVerifyPath: string;
-    fxRatePath: string;
-    cardsCreatePath: string;
-    cardsBlockPath: string;
-    cardsUnblockPath: string;
-    otpSendPath: string;
-    notificationsSendPath: string;
-  };
+    licensed: {
+      baseUrl?: string;
+      apiKey?: string;
+      timeoutMs: number;
+      webhookSecret?: string;
+      paymentsVirtualAccountPath: string;
+      paymentsPayoutPath: string;
+      paymentsResolvePath: string;
+      paymentsStatusPath: string;
+      billsCatalogPath: string;
+      billsValidatePath: string;
+      billsPurchasePath: string;
+      billsNqrPayPath: string;
+      kycVerifyPath: string;
+      fxRatePath: string;
+      cardsCreatePath: string;
+      cardsBlockPath: string;
+      cardsUnblockPath: string;
+      otpSendPath: string;
+      notificationsSendPath: string;
+    };
   twilio: {
     accountSid?: string;
     authToken?: string;
@@ -174,8 +177,12 @@ export default () => ({
       paymentsPayoutPath: process.env.LICENSED_INFRA_PAYMENTS_PAYOUT_PATH || '/payments/payouts',
       paymentsResolvePath:
         process.env.LICENSED_INFRA_PAYMENTS_RESOLVE_PATH || '/payments/accounts/resolve',
+      paymentsStatusPath:
+        process.env.LICENSED_INFRA_PAYMENTS_STATUS_PATH || '/payments/status',
       billsCatalogPath: process.env.LICENSED_INFRA_BILLS_CATALOG_PATH || '/bills/catalog',
+      billsValidatePath: process.env.LICENSED_INFRA_BILLS_VALIDATE_PATH || '/bills/validate',
       billsPurchasePath: process.env.LICENSED_INFRA_BILLS_PURCHASE_PATH || '/bills/purchase',
+      billsNqrPayPath: process.env.LICENSED_INFRA_BILLS_NQR_PAY_PATH || '/bills/nqr/pay',
       kycVerifyPath: process.env.LICENSED_INFRA_KYC_VERIFY_PATH || '/kyc/verify',
       fxRatePath: process.env.LICENSED_INFRA_FX_RATE_PATH || '/fx/rate',
       cardsCreatePath: process.env.LICENSED_INFRA_CARDS_CREATE_PATH || '/cards',

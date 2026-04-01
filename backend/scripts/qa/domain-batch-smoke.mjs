@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 const base = (process.env.QA_BASE_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
 const api = `${base}/api`;
 const password = process.env.QA_PASSWORD ?? 'QaFlow#12345';
+const transactionPin = process.env.QA_PIN ?? '1234';
 
 const results = [];
 
@@ -102,6 +103,14 @@ async function main() {
     return `NGN=${ngn.id} USD=${usd.id}`;
   });
 
+  await step('SETUP-PIN', async () => {
+    await request('POST', '/users/me/pin', {
+      token,
+      body: { pin: transactionPin }
+    });
+    return 'pin configured';
+  });
+
   await step('SETUP-FUND-NGN', async () => {
     await request('POST', '/payments/webhook/internal', {
       headers: { 'x-signature': 'qa-signature' },
@@ -170,8 +179,9 @@ async function main() {
 
   await step('BILLS-LIST-BENEFICIARY', async () => {
     const response = await request('GET', '/bills/beneficiaries', { token });
-    if (!Array.isArray(response) || response.length === 0) throw new Error('beneficiaries empty');
-    return `count=${response.length}`;
+    const benes = Array.isArray(response) ? response : response?.beneficiaries ?? [];
+    if (!Array.isArray(benes) || benes.length === 0) throw new Error('beneficiaries empty');
+    return `count=${benes.length}`;
   });
 
   await step('BILLS-PURCHASE', async () => {
@@ -182,11 +192,12 @@ async function main() {
         beneficiary: '08030000000',
         amountMinor: 1500,
         currency: 'NGN',
-        description: 'Domain batch bill payment'
+        description: 'Domain batch bill payment',
+        pin: transactionPin
       }
     });
-    if (!response?.reference) throw new Error('missing bill reference');
-    return response.reference;
+    if (!response?.reference && !response?.payment_id) throw new Error('missing bill reference');
+    return response.reference ?? response.payment_id;
   });
 
   await step('SAVINGS-CREATE-VAULT', async () => {

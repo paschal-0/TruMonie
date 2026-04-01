@@ -19,7 +19,23 @@ export interface PaymentProvider {
     currency: Currency,
     destination: { bankCode: string; accountNumber: string; accountName?: string },
     narration?: string
-  ): Promise<{ providerReference: string; status: 'PENDING' | 'SUCCESS' | 'FAILED' }>;
+  ): Promise<{
+    providerReference: string;
+    status: 'PENDING' | 'SUCCESS' | 'FAILED';
+    responseCode?: string;
+    responseMessage?: string;
+    sessionId?: string;
+  }>;
+  queryTransferStatus?(params: {
+    providerReference?: string;
+    reference: string;
+    sessionId?: string;
+  }): Promise<{
+    status: 'PENDING' | 'SUCCESS' | 'FAILED';
+    responseCode: string;
+    responseMessage: string;
+    completedAt?: string;
+  }>;
   verifyWebhookSignature(payload: string, signature: string): boolean;
   parseFundingWebhook(body: unknown): {
     idempotencyKey: string;

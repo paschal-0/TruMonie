@@ -29,7 +29,18 @@ export class InternalPaymentProvider implements PaymentProvider {
     void destination;
     return {
       providerReference: `INTERNAL-${Date.now()}`,
-      status: 'SUCCESS' as const
+      status: 'SUCCESS' as const,
+      responseCode: '00',
+      responseMessage: 'Approved or completed successfully'
+    };
+  }
+
+  async queryTransferStatus(_params: { providerReference?: string; reference: string; sessionId?: string }) {
+    return {
+      status: 'SUCCESS' as const,
+      responseCode: '00',
+      responseMessage: 'Approved or completed successfully',
+      completedAt: new Date().toISOString()
     };
   }
 

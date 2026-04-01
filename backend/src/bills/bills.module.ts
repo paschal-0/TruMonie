@@ -7,14 +7,20 @@ import { BillsService } from './bills.service';
 import { BillsAggregatorStub } from './providers/bills-aggregator.stub';
 import { BillPayment } from './entities/bill-payment.entity';
 import { BillBeneficiary } from './entities/bill-beneficiary.entity';
+import { BillValidation } from './entities/bill-validation.entity';
 import { LedgerModule } from '../ledger/ledger.module';
 import { BILLS_PROVIDER } from './bills.constants';
 import { LicensedBillsProvider } from './providers/licensed-bills.provider';
 import { UsersModule } from '../users/users.module';
-import { NotificationsModule } from '../notifications/notifications.module';
+import { LimitsModule } from '../limits/limits.module';
 
 @Module({
-  imports: [LedgerModule, UsersModule, NotificationsModule, TypeOrmModule.forFeature([BillPayment, BillBeneficiary])],
+  imports: [
+    LedgerModule,
+    UsersModule,
+    LimitsModule,
+    TypeOrmModule.forFeature([BillPayment, BillValidation, BillBeneficiary])
+  ],
   controllers: [BillsController],
   providers: [
     BillsService,

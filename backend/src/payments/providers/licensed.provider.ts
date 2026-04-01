@@ -19,6 +19,10 @@ interface LicensedPayload {
   bankCode?: string;
   accountName?: string;
   accountNumberResolved?: string;
+  sessionId?: string;
+  responseCode?: string;
+  responseMessage?: string;
+  completedAt?: string;
   data?: LicensedPayload;
   idempotencyKey?: string;
   userId?: string;
@@ -72,7 +76,28 @@ export class LicensedPaymentProvider implements PaymentProvider {
     return {
       providerReference:
         data?.providerReference ?? data?.reference ?? data?.data?.providerReference ?? `LIC-${Date.now()}`,
-      status
+      status,
+      responseCode: data?.responseCode ?? data?.data?.responseCode,
+      responseMessage: data?.responseMessage ?? data?.data?.responseMessage,
+      sessionId: data?.sessionId ?? data?.data?.sessionId
+    };
+  }
+
+  async queryTransferStatus(params: { providerReference?: string; reference: string; sessionId?: string }) {
+    const data = await this.request<LicensedPayload>('POST', this.path('paymentsStatusPath'), {
+      providerReference: params.providerReference,
+      reference: params.reference,
+      sessionId: params.sessionId
+    });
+    const rawStatus = (data?.status ?? data?.data?.status ?? 'PENDING').toString().toUpperCase();
+    const status: 'PENDING' | 'SUCCESS' | 'FAILED' =
+      rawStatus === 'SUCCESS' ? 'SUCCESS' : rawStatus === 'FAILED' ? 'FAILED' : 'PENDING';
+    return {
+      status,
+      responseCode: (data?.responseCode ?? data?.data?.responseCode ?? '01').toString(),
+      responseMessage:
+        (data?.responseMessage ?? data?.data?.responseMessage ?? 'Status unknown').toString(),
+      completedAt: data?.completedAt ?? data?.data?.completedAt
     };
   }
 
@@ -119,6 +144,7 @@ export class LicensedPaymentProvider implements PaymentProvider {
       | 'paymentsVirtualAccountPath'
       | 'paymentsPayoutPath'
       | 'paymentsResolvePath'
+      | 'paymentsStatusPath'
   ): string {
     return this.configService.get<string>(`integrations.licensed.${key}`, '');
   }

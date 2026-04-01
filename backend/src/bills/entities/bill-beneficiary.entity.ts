@@ -20,4 +20,10 @@ export class BillBeneficiary extends BaseEntity {
 
   @Column({ type: 'varchar', length: 128 })
   destination!: string;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  lastUsedAt!: Date | null;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  deletedAt!: Date | null;
 }

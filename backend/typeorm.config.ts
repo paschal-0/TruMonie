@@ -12,6 +12,7 @@ import { UserKycData } from './src/kyc/entities/user-kyc-data.entity';
 import { FundingTransaction } from './src/payments/entities/funding-transaction.entity';
 import { Payout } from './src/payments/entities/payout.entity';
 import { BillPayment } from './src/bills/entities/bill-payment.entity';
+import { BillValidation } from './src/bills/entities/bill-validation.entity';
 import { SavingsGroup } from './src/ajo/entities/savings-group.entity';
 import { GroupMember } from './src/ajo/entities/group-member.entity';
 import { GroupContribution } from './src/ajo/entities/group-contribution.entity';
@@ -26,6 +27,8 @@ import { Notification } from './src/notifications/entities/notification.entity';
 import { WalletEvent } from './src/ledger/entities/wallet-event.entity';
 import { WalletTransaction } from './src/ledger/entities/wallet-transaction.entity';
 import { VirtualAccount } from './src/ledger/entities/virtual-account.entity';
+import { Transfer } from './src/payments/entities/transfer.entity';
+import { TransferBeneficiary } from './src/payments/entities/transfer-beneficiary.entity';
 
 dotenv.config();
 const config = configuration();
@@ -48,6 +51,7 @@ const dataSource = new DataSource({
     FundingTransaction,
     Payout,
     BillPayment,
+    BillValidation,
     SavingsGroup,
     GroupMember,
     GroupContribution,
@@ -61,7 +65,9 @@ const dataSource = new DataSource({
     Notification,
     WalletEvent,
     WalletTransaction,
-    VirtualAccount
+    VirtualAccount,
+    Transfer,
+    TransferBeneficiary
   ],
   migrations: ['src/migrations/*.ts'],
   namingStrategy: undefined, // handled in entities; keep default for migrations
