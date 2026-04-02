@@ -3,6 +3,7 @@ import { Currency } from '../ledger/enums/currency.enum';
 export interface AppConfig {
   env: string;
   port: number;
+  corsOrigins: string[];
 }
 
 export interface DatabaseConfig {
@@ -42,6 +43,16 @@ export interface WalletConfig {
   nubanBankCode: string;
 }
 
+export interface MerchantConfig {
+  defaultPtsaId: string;
+  posFeeBps: number;
+  settlement: {
+    queueEnabled: boolean;
+    t0Cron: string;
+    t1Cron: string;
+  };
+}
+
 export interface IntegrationsConfig {
   defaultPaymentProvider: string;
   defaultBillsProvider: string;
@@ -50,6 +61,7 @@ export interface IntegrationsConfig {
   defaultCardsProvider: string;
   defaultOtpProvider: string;
   defaultNotificationProvider: string;
+  defaultPtsaProvider: string;
     licensed: {
       baseUrl?: string;
       apiKey?: string;
@@ -70,6 +82,8 @@ export interface IntegrationsConfig {
       cardsUnblockPath: string;
       otpSendPath: string;
       notificationsSendPath: string;
+      ptsaChargePath: string;
+      ptsaStatusPath: string;
     };
   twilio: {
     accountSid?: string;
@@ -103,7 +117,11 @@ export interface IntegrationsConfig {
 export default () => ({
   app: {
     env: process.env.NODE_ENV || 'development',
-    port: parseInt(process.env.PORT || '3000', 10)
+    port: parseInt(process.env.PORT || '3000', 10),
+    corsOrigins: (process.env.APP_CORS_ORIGINS || '*')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean)
   } as AppConfig,
   database: {
     host: process.env.POSTGRES_HOST || 'localhost',
@@ -159,6 +177,16 @@ export default () => ({
   wallet: {
     nubanBankCode: process.env.WALLET_NUBAN_BANK_CODE || '340'
   } as WalletConfig,
+  merchant: {
+    defaultPtsaId: process.env.MERCHANT_DEFAULT_PTSA_ID || 'PTSA_SIM',
+    posFeeBps: parseInt(process.env.MERCHANT_POS_FEE_BPS || '100', 10),
+    settlement: {
+      queueEnabled:
+        (process.env.MERCHANT_SETTLEMENT_QUEUE_ENABLED || 'true').toLowerCase() !== 'false',
+      t0Cron: process.env.MERCHANT_SETTLEMENT_T0_CRON || '0 22 * * *',
+      t1Cron: process.env.MERCHANT_SETTLEMENT_T1_CRON || '0 6 * * *'
+    }
+  } as MerchantConfig,
   integrations: {
     defaultPaymentProvider: process.env.DEFAULT_PAYMENT_PROVIDER || 'licensed',
     defaultBillsProvider: process.env.DEFAULT_BILLS_PROVIDER || 'licensed',
@@ -167,6 +195,7 @@ export default () => ({
     defaultCardsProvider: process.env.DEFAULT_CARDS_PROVIDER || 'licensed',
     defaultOtpProvider: process.env.DEFAULT_OTP_PROVIDER || 'resend',
     defaultNotificationProvider: process.env.DEFAULT_NOTIFICATION_PROVIDER || 'licensed',
+    defaultPtsaProvider: process.env.DEFAULT_PTSA_PROVIDER || 'internal',
     licensed: {
       baseUrl: process.env.LICENSED_INFRA_BASE_URL,
       apiKey: process.env.LICENSED_INFRA_API_KEY,
@@ -190,7 +219,11 @@ export default () => ({
       cardsUnblockPath: process.env.LICENSED_INFRA_CARDS_UNBLOCK_PATH || '/cards/unblock',
       otpSendPath: process.env.LICENSED_INFRA_OTP_SEND_PATH || '/otp/send',
       notificationsSendPath:
-        process.env.LICENSED_INFRA_NOTIFICATIONS_SEND_PATH || '/notifications/send'
+        process.env.LICENSED_INFRA_NOTIFICATIONS_SEND_PATH || '/notifications/send',
+      ptsaChargePath:
+        process.env.LICENSED_INFRA_PTSA_CHARGE_PATH || '/merchant/ptsa/pos/charge',
+      ptsaStatusPath:
+        process.env.LICENSED_INFRA_PTSA_STATUS_PATH || '/merchant/ptsa/pos/status'
     },
     twilio: {
       accountSid: process.env.TWILIO_ACCOUNT_SID,

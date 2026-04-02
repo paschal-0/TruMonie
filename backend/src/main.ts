@@ -12,6 +12,7 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('app.port', 3000);
+  const corsOrigins = configService.get<string[]>('app.corsOrigins', ['*']);
   const httpAdapter = app.getHttpAdapter().getInstance() as {
     use: (handler: (req: { url: string }, res: unknown, next: () => void) => void) => void;
   };
@@ -26,6 +27,16 @@ async function bootstrap() {
   });
 
   app.setGlobalPrefix('api');
+  app.enableCors({
+    origin: (origin, callback) => {
+      if (!origin || corsOrigins.includes('*') || corsOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true
+  });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

@@ -19,6 +19,7 @@ import { RemittanceModule } from './remittance/remittance.module';
 import { SavingsModule } from './savings/savings.module';
 import { RiskModule } from './risk/risk.module';
 import { CardsModule } from './cards/cards.module';
+import { MerchantModule } from './merchant/merchant.module';
 
 @Module({
   imports: [
@@ -42,7 +43,8 @@ import { CardsModule } from './cards/cards.module';
     RemittanceModule,
     SavingsModule,
     RiskModule,
-    CardsModule
+    CardsModule,
+    MerchantModule
   ]
 })
 export class AppModule {}

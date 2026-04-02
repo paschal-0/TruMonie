@@ -11,6 +11,10 @@ class EnvironmentVariables {
   PORT?: number;
 
   @IsString()
+  @IsOptional()
+  APP_CORS_ORIGINS?: string;
+
+  @IsString()
   @IsNotEmpty()
   POSTGRES_HOST!: string;
 
@@ -67,6 +71,26 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   WALLET_NUBAN_BANK_CODE?: string;
+
+  @IsString()
+  @IsOptional()
+  MERCHANT_DEFAULT_PTSA_ID?: string;
+
+  @IsNumber()
+  @IsOptional()
+  MERCHANT_POS_FEE_BPS?: number;
+
+  @IsString()
+  @IsOptional()
+  MERCHANT_SETTLEMENT_QUEUE_ENABLED?: string;
+
+  @IsString()
+  @IsOptional()
+  MERCHANT_SETTLEMENT_T0_CRON?: string;
+
+  @IsString()
+  @IsOptional()
+  MERCHANT_SETTLEMENT_T1_CRON?: string;
 
   @IsString()
   @IsOptional()
@@ -150,6 +174,10 @@ class EnvironmentVariables {
 
   @IsString()
   @IsOptional()
+  DEFAULT_PTSA_PROVIDER?: string;
+
+  @IsString()
+  @IsOptional()
   LICENSED_INFRA_BASE_URL?: string;
 
   @IsString()
@@ -223,6 +251,14 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   LICENSED_INFRA_NOTIFICATIONS_SEND_PATH?: string;
+
+  @IsString()
+  @IsOptional()
+  LICENSED_INFRA_PTSA_CHARGE_PATH?: string;
+
+  @IsString()
+  @IsOptional()
+  LICENSED_INFRA_PTSA_STATUS_PATH?: string;
 
   @IsString()
   @IsOptional()

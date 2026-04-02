@@ -29,6 +29,10 @@ import { WalletTransaction } from './src/ledger/entities/wallet-transaction.enti
 import { VirtualAccount } from './src/ledger/entities/virtual-account.entity';
 import { Transfer } from './src/payments/entities/transfer.entity';
 import { TransferBeneficiary } from './src/payments/entities/transfer-beneficiary.entity';
+import { Merchant } from './src/merchant/entities/merchant.entity';
+import { PosTerminal } from './src/merchant/entities/pos-terminal.entity';
+import { Settlement } from './src/merchant/entities/settlement.entity';
+import { MerchantTransaction } from './src/merchant/entities/merchant-transaction.entity';
 
 dotenv.config();
 const config = configuration();
@@ -67,7 +71,11 @@ const dataSource = new DataSource({
     WalletTransaction,
     VirtualAccount,
     Transfer,
-    TransferBeneficiary
+    TransferBeneficiary,
+    Merchant,
+    PosTerminal,
+    Settlement,
+    MerchantTransaction
   ],
   migrations: ['src/migrations/*.ts'],
   namingStrategy: undefined, // handled in entities; keep default for migrations

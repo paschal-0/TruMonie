@@ -18,6 +18,11 @@ import { FxScreen } from '../screens/FxScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { CompleteKycScreen } from '../screens/CompleteKycScreen';
 import { CompleteLivenessScreen } from '../screens/CompleteLivenessScreen';
+import { MerchantHubScreen } from '../screens/MerchantHubScreen';
+import { MerchantOnboardingScreen } from '../screens/MerchantOnboardingScreen';
+import { MerchantTerminalsScreen } from '../screens/MerchantTerminalsScreen';
+import { MerchantSettlementsScreen } from '../screens/MerchantSettlementsScreen';
+import { MerchantTransactionsScreen } from '../screens/MerchantTransactionsScreen';
 
 const Tab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
@@ -68,6 +73,11 @@ export function AppNavigator() {
           <RootStack.Screen name="Notifications" component={NotificationsScreen} />
           <RootStack.Screen name="CompleteKyc" component={CompleteKycScreen} />
           <RootStack.Screen name="CompleteLiveness" component={CompleteLivenessScreen} />
+          <RootStack.Screen name="MerchantHub" component={MerchantHubScreen} />
+          <RootStack.Screen name="MerchantOnboarding" component={MerchantOnboardingScreen} />
+          <RootStack.Screen name="MerchantTerminals" component={MerchantTerminalsScreen} />
+          <RootStack.Screen name="MerchantSettlements" component={MerchantSettlementsScreen} />
+          <RootStack.Screen name="MerchantTransactions" component={MerchantTransactionsScreen} />
         </>
       ) : (
         <>

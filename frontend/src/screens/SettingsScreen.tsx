@@ -359,6 +359,12 @@ export const SettingsScreen: React.FC = () => {
 
       <Section title="Preferences">
         <Row
+          icon="storefront"
+          title="Merchant Center"
+          subtitle="Onboarding, POS terminals, settlements"
+          onPress={() => navigation.navigate('MerchantHub')}
+        />
+        <Row
           icon="cash-outline"
           title="Currency"
           subtitle="NGN (\u20A6)"

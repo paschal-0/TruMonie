@@ -24,16 +24,17 @@ type NavTargets =
   | 'Remit'
   | 'Cards'
   | 'Settings'
-  | 'Notifications';
+  | 'Notifications'
+  | 'MerchantHub';
 type GradientPair = readonly [string, string];
 
 const actions: { label: string; target: NavTargets; icon: keyof typeof Ionicons.glyphMap }[] = [
   { label: 'Send', target: 'Wallet', icon: 'arrow-up-circle' },
-  { label: 'Request', target: 'Wallet', icon: 'download-outline' },
-  { label: 'Scan', target: 'Wallet', icon: 'qr-code-outline' },
+  { label: 'Merchant', target: 'MerchantHub', icon: 'storefront-outline' },
   { label: 'Bills', target: 'Bills', icon: 'receipt-outline' },
   { label: 'Savings', target: 'Savings', icon: 'trending-up' },
-  { label: 'FX', target: 'FX', icon: 'swap-horizontal' }
+  { label: 'FX', target: 'FX', icon: 'swap-horizontal' },
+  { label: 'Cards', target: 'Cards', icon: 'card-outline' }
 ];
 
 const reefPalette: GradientPair[] = [

@@ -17,6 +17,7 @@
     "qa:smoke:p0": "node ./scripts/qa/p0-smoke.mjs",
     "qa:smoke:bills": "node ./scripts/qa/bills-module4-smoke.mjs",
     "qa:smoke:transfers": "node ./scripts/qa/transfers-module3-smoke.mjs",
+    "qa:smoke:merchant": "node ./scripts/qa/merchant-module5-smoke.mjs",
     "qa:smoke:domain": "node ./scripts/qa/domain-batch-smoke.mjs",
     "qa:smoke:notifications": "node ./scripts/qa/notifications-smoke.mjs",
     "qa:smoke:security": "node ./scripts/qa/security-rbac-smoke.mjs",
