@@ -1,4 +1,13 @@
-import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsPhoneNumber, IsString, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsPhoneNumber,
+  IsString,
+  Matches,
+  MinLength
+} from 'class-validator';
 
 export class CreateUserDto {
   @IsPhoneNumber('NG')
@@ -25,7 +34,9 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(4)
+  @Matches(/^(\d{4}|\d{6})$/, {
+    message: 'pin must be exactly 4 or 6 digits'
+  })
   pin?: string;
 
   @IsOptional()

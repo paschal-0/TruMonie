@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { LedgerModule } from '../ledger/ledger.module';
 import { UsersModule } from '../users/users.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { ComplianceModule } from '../compliance/compliance.module';
 import { AuditLog } from './entities/audit-log.entity';
 import { UserDevice } from './entities/user-device.entity';
 import { CircuitBreaker } from './entities/circuit-breaker.entity';
@@ -19,6 +20,7 @@ import { CircuitBreakerService } from './circuit-breaker.service';
     LedgerModule,
     UsersModule,
     NotificationsModule,
+    ComplianceModule,
     TypeOrmModule.forFeature([AuditLog, UserDevice, CircuitBreaker])
   ],
   providers: [

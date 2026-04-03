@@ -1,12 +1,16 @@
-import { Body, Controller, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Request } from 'express';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { ComplianceService } from '../compliance/compliance.service';
+import { ComplianceRiskLevel } from '../compliance/entities/compliance-event.entity';
 import { User, UserRole, UserStatus } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { AuditService } from './audit.service';
+import { AuditActorType } from './entities/audit-log.entity';
 import { RegisterDeviceDto } from './dto/register-device.dto';
 import { DeviceBindingsService } from './device-bindings.service';
 
@@ -16,24 +20,63 @@ export class RiskController {
   constructor(
     private readonly usersService: UsersService,
     private readonly auditService: AuditService,
-    private readonly deviceBindingsService: DeviceBindingsService
+    private readonly deviceBindingsService: DeviceBindingsService,
+    private readonly complianceService: ComplianceService
   ) {}
 
   @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.SUPER_ADMIN)
   @Patch('user/:id/freeze')
-  async freezeUser(@CurrentUser() requester: User, @Param('id') id: string) {
+  async freezeUser(@CurrentUser() requester: User, @Param('id') id: string, @Req() req: Request) {
     await this.usersService.updateStatus(id, UserStatus.DISABLED);
-    await this.auditService.record(requester.id, 'USER_FREEZE', { target: id });
+    await this.auditService.record({
+      actorId: requester.id,
+      actorType: AuditActorType.ADMIN,
+      eventType: 'USER_FREEZE',
+      resourceType: 'USER',
+      resourceId: id,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'] ?? null,
+      metadata: { target: id }
+    });
+    await this.complianceService.emit({
+      eventType: 'MANUAL_REVIEW',
+      referenceId: id,
+      userId: id,
+      riskLevel: ComplianceRiskLevel.HIGH,
+      details: {
+        action: 'USER_FREEZE',
+        performedBy: requester.id
+      }
+    });
     return { status: 'frozen' };
   }
 
   @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.SUPER_ADMIN)
   @Patch('user/:id/unfreeze')
-  async unfreezeUser(@CurrentUser() requester: User, @Param('id') id: string) {
+  async unfreezeUser(@CurrentUser() requester: User, @Param('id') id: string, @Req() req: Request) {
     await this.usersService.updateStatus(id, UserStatus.ACTIVE);
-    await this.auditService.record(requester.id, 'USER_UNFREEZE', { target: id });
+    await this.auditService.record({
+      actorId: requester.id,
+      actorType: AuditActorType.ADMIN,
+      eventType: 'USER_UNFREEZE',
+      resourceType: 'USER',
+      resourceId: id,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'] ?? null,
+      metadata: { target: id }
+    });
+    await this.complianceService.emit({
+      eventType: 'MANUAL_REVIEW',
+      referenceId: id,
+      userId: id,
+      riskLevel: ComplianceRiskLevel.MEDIUM,
+      details: {
+        action: 'USER_UNFREEZE',
+        performedBy: requester.id
+      }
+    });
     return { status: 'unfrozen' };
   }
 

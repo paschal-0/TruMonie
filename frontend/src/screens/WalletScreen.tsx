@@ -35,6 +35,12 @@ import {
   getStoredTransactionPin,
   saveTransactionPinLocally
 } from '../lib/transactionAuth';
+import {
+  useCreateBiometricChallenge,
+  useSendOtp,
+  useVerifyBiometricChallenge
+} from '../hooks/useAuthActions';
+import { useProfile } from '../hooks/useProfile';
 
 type PendingTransfer =
   | {
@@ -94,8 +100,12 @@ function formatMinor(amountMinor: number | string, currency = 'NGN') {
   })}`;
 }
 
+const TRANSFER_OTP_THRESHOLD_MINOR = 5_000_000;
+const TRANSFER_BIOMETRIC_THRESHOLD_MINOR = 50_000_000;
+
 export const WalletScreen: React.FC = () => {
   const { session } = useAuth();
+  const profileQuery = useProfile(session?.accessToken);
   const { data, isLoading, isError, refetch } = useWallets(session?.accessToken);
   const { data: canonicalAccount } = useWalletAccountNumber(session?.accessToken, 'NGN');
   const { data: pinStatus } = useTransactionPinStatus(session?.accessToken);
@@ -107,6 +117,9 @@ export const WalletScreen: React.FC = () => {
   const beneficiariesQuery = useTransferBeneficiaries(session?.accessToken);
   const saveBeneficiary = useSaveTransferBeneficiary(session?.accessToken);
   const deleteBeneficiary = useDeleteTransferBeneficiary(session?.accessToken);
+  const sendOtp = useSendOtp();
+  const createBiometricChallenge = useCreateBiometricChallenge(session?.accessToken);
+  const verifyBiometricChallenge = useVerifyBiometricChallenge(session?.accessToken);
 
   const [trackedTransferId, setTrackedTransferId] = useState<string | null>(null);
   const transferStatus = useTransferStatus(session?.accessToken, trackedTransferId ?? undefined, !!trackedTransferId);
@@ -122,6 +135,8 @@ export const WalletScreen: React.FC = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authPin, setAuthPin] = useState('');
+  const [authOtpCode, setAuthOtpCode] = useState('');
+  const [biometricTicket, setBiometricTicket] = useState<string | null>(null);
   const [pendingTransfer, setPendingTransfer] = useState<PendingTransfer | null>(null);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -236,13 +251,21 @@ export const WalletScreen: React.FC = () => {
     };
   }, [pendingTransfer]);
 
+  const pendingAmountMinor = useMemo(() => {
+    if (!pendingTransfer) return 0;
+    return pendingTransfer.payload.amountMinor;
+  }, [pendingTransfer]);
+
+  const requiresOtp = pendingAmountMinor >= TRANSFER_OTP_THRESHOLD_MINOR;
+  const requiresBiometricStepUp = pendingAmountMinor >= TRANSFER_BIOMETRIC_THRESHOLD_MINOR;
+
   const submitPinSetup = () => {
-    if (!/^\d{4}$/.test(pinSetup.pin)) {
-      Alert.alert('Validation', 'PIN must be exactly 4 digits.');
+    if (!/^(\d{4}|\d{6})$/.test(pinSetup.pin)) {
+      Alert.alert('Validation', 'PIN must be exactly 4 or 6 digits.');
       return;
     }
-    if (pinStatus?.hasTransactionPin && !/^\d{4}$/.test(pinSetup.currentPin)) {
-      Alert.alert('Validation', 'Current PIN is required.');
+    if (pinStatus?.hasTransactionPin && !/^(\d{4}|\d{6})$/.test(pinSetup.currentPin)) {
+      Alert.alert('Validation', 'Current PIN is required (4 or 6 digits).');
       return;
     }
     setPinMutation.mutate(
@@ -263,7 +286,7 @@ export const WalletScreen: React.FC = () => {
 
   const prepareP2PTransfer = () => {
     if (!pinStatus?.hasTransactionPin) {
-      Alert.alert('Transaction PIN Required', 'Create your 4-digit transaction PIN first.', [
+      Alert.alert('Transaction PIN Required', 'Create your 4 or 6 digit transaction PIN first.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Create PIN', onPress: () => setShowPinSetup(true) }
       ]);
@@ -292,7 +315,7 @@ export const WalletScreen: React.FC = () => {
 
   const prepareBankTransfer = () => {
     if (!pinStatus?.hasTransactionPin) {
-      Alert.alert('Transaction PIN Required', 'Create your 4-digit transaction PIN first.', [
+      Alert.alert('Transaction PIN Required', 'Create your 4 or 6 digit transaction PIN first.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Create PIN', onPress: () => setShowPinSetup(true) }
       ]);
@@ -336,7 +359,7 @@ export const WalletScreen: React.FC = () => {
 
   const prepareInternalTransfer = () => {
     if (!pinStatus?.hasTransactionPin) {
-      Alert.alert('Transaction PIN Required', 'Create your 4-digit transaction PIN first.', [
+      Alert.alert('Transaction PIN Required', 'Create your 4 or 6 digit transaction PIN first.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Create PIN', onPress: () => setShowPinSetup(true) }
       ]);
@@ -408,18 +431,51 @@ export const WalletScreen: React.FC = () => {
     }
   };
 
-  const executeTransferWithPin = async (pin: string) => {
-    if (!pendingTransfer) return;
-    if (!/^\d{4}$/.test(pin)) {
-      Alert.alert('Validation', 'Enter your 4-digit transaction PIN.');
+  const sendTransferOtpCode = async () => {
+    const destination = profileQuery.data?.email;
+    if (!destination) {
+      Alert.alert('Profile Required', 'Unable to resolve your profile email for OTP delivery.');
       return;
     }
+    try {
+      await sendOtp.mutateAsync({
+        destination,
+        purpose: 'TRANSFER_MFA',
+        channel: 'email'
+      });
+      Alert.alert('OTP Sent', `A transfer OTP has been sent to ${destination}.`);
+    } catch (error) {
+      Alert.alert('OTP Failed', (error as Error)?.message ?? 'Unable to send OTP right now.');
+    }
+  };
+
+  const executeTransferWithPin = async (pin: string, optionalBiometricTicket?: string | null) => {
+    if (!pendingTransfer) return;
+    if (!/^(\d{4}|\d{6})$/.test(pin)) {
+      Alert.alert('Validation', 'Enter your 4 or 6 digit transaction PIN.');
+      return;
+    }
+    if (requiresOtp && !/^\d{6}$/.test(authOtpCode.trim())) {
+      Alert.alert('Validation', 'Enter your 6-digit transfer OTP.');
+      return;
+    }
+    if (requiresBiometricStepUp && !optionalBiometricTicket && !biometricTicket) {
+      Alert.alert('Biometric Required', 'Authorize with biometrics for this transfer amount.');
+      return;
+    }
+
+    const otpDestination = profileQuery.data?.email;
+    const transferOtpCode = authOtpCode.trim() || undefined;
+    const resolvedBiometricTicket = optionalBiometricTicket ?? biometricTicket ?? undefined;
 
     try {
       if (pendingTransfer.type === 'p2p') {
         const result: any = await p2p.mutateAsync({
           ...pendingTransfer.payload,
-          pin
+          pin,
+          otpCode: transferOtpCode,
+          otpDestination,
+          biometricTicket: resolvedBiometricTicket
         });
         setReceipt({
           title: 'P2P Transfer Successful',
@@ -445,6 +501,9 @@ export const WalletScreen: React.FC = () => {
           amount: pendingTransfer.payload.amountMinor,
           narration: pendingTransfer.payload.narration,
           pin,
+          otp_code: transferOtpCode,
+          otp_destination: otpDestination,
+          biometric_ticket: resolvedBiometricTicket,
           idempotency_key: generateIdempotencyKey(),
           session_id: pendingTransfer.payload.sessionId
         });
@@ -473,6 +532,9 @@ export const WalletScreen: React.FC = () => {
           amount: pendingTransfer.payload.amountMinor,
           narration: pendingTransfer.payload.narration,
           pin,
+          otp_code: transferOtpCode,
+          otp_destination: otpDestination,
+          biometric_ticket: resolvedBiometricTicket,
           idempotency_key: generateIdempotencyKey()
         });
         setReceipt({
@@ -492,11 +554,19 @@ export const WalletScreen: React.FC = () => {
       }
       await saveTransactionPinLocally(pin);
       setAuthPin('');
+      setAuthOtpCode('');
+      setBiometricTicket(null);
       setShowAuthModal(false);
       setPendingTransfer(null);
       void refetch();
     } catch (error) {
-      Alert.alert('Transaction Failed', (error as Error)?.message ?? 'Unable to complete transfer.');
+      const code = (error as any)?.code;
+      const message = (error as Error)?.message ?? 'Unable to complete transfer.';
+      if (code === 'SEC_005') {
+        Alert.alert('Step-Up Required', `${message}. Send OTP and/or complete biometric authorization.`);
+        return;
+      }
+      Alert.alert('Transaction Failed', message);
     }
   };
 
@@ -509,12 +579,30 @@ export const WalletScreen: React.FC = () => {
       promptMessage: 'Authorize this transaction'
     });
     if (!auth.success) return;
+    let ticketId: string | null = null;
+    if (requiresBiometricStepUp) {
+      try {
+        const challenge = await createBiometricChallenge.mutateAsync({ type: 'FINGERPRINT' });
+        const verified = await verifyBiometricChallenge.mutateAsync({
+          challenge_id: challenge.challenge_id,
+          signed_attestation: 'LOCAL_DEVICE_AUTH_OK'
+        });
+        ticketId = verified.ticket_id;
+        setBiometricTicket(ticketId);
+      } catch (error) {
+        Alert.alert(
+          'Biometric Verification Failed',
+          (error as Error)?.message ?? 'Unable to complete biometric verification.'
+        );
+        return;
+      }
+    }
     const storedPin = await getStoredTransactionPin();
     if (!storedPin) {
       Alert.alert('PIN Needed', 'No saved PIN found. Enter PIN once to continue.');
       return;
     }
-    await executeTransferWithPin(storedPin);
+    await executeTransferWithPin(storedPin, ticketId);
   };
 
   const isSubmitting = p2p.isPending || bankTransfer.isPending || internalTransfer.isPending;
@@ -775,6 +863,9 @@ export const WalletScreen: React.FC = () => {
               title="Confirm & Authorize"
               onPress={() => {
                 setShowConfirmModal(false);
+                setAuthPin('');
+                setAuthOtpCode('');
+                setBiometricTicket(null);
                 setShowAuthModal(true);
               }}
               style={{ marginTop: 12 }}
@@ -790,17 +881,45 @@ export const WalletScreen: React.FC = () => {
         <View style={styles.modalBackdrop}>
           <GlassCard style={styles.modalCard}>
             <ThemedText style={styles.modalTitle}>Authorize Transaction</ThemedText>
+            {requiresOtp ? (
+              <>
+                <ThemedText style={styles.label}>Transfer OTP (email)</ThemedText>
+                <TextInput
+                  style={styles.input}
+                  placeholder="6-digit OTP"
+                  placeholderTextColor={colors.textSecondary}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  value={authOtpCode}
+                  onChangeText={setAuthOtpCode}
+                />
+                {sendOtp.isPending ? (
+                  <ActivityIndicator color={colors.accent} />
+                ) : (
+                  <GradientButton
+                    title="Send OTP"
+                    onPress={() => void sendTransferOtpCode()}
+                    style={{ marginTop: 10 }}
+                  />
+                )}
+              </>
+            ) : null}
             <ThemedText style={styles.label}>Transaction PIN</ThemedText>
             <TextInput
               style={styles.input}
-              placeholder="4-digit PIN"
+              placeholder="4 or 6 digit PIN"
               placeholderTextColor={colors.textSecondary}
               keyboardType="number-pad"
               secureTextEntry
-              maxLength={4}
+              maxLength={6}
               value={authPin}
               onChangeText={setAuthPin}
             />
+            {requiresBiometricStepUp ? (
+              <ThemedText style={styles.accountNumber}>
+                Biometric verification is required for this transfer amount.
+              </ThemedText>
+            ) : null}
             {isSubmitting ? (
               <ActivityIndicator color={colors.accent} />
             ) : (
@@ -821,6 +940,8 @@ export const WalletScreen: React.FC = () => {
               onPress={() => {
                 setShowAuthModal(false);
                 setAuthPin('');
+                setAuthOtpCode('');
+                setBiometricTicket(null);
               }}
               style={styles.modalCancel}
             >
@@ -859,7 +980,7 @@ export const WalletScreen: React.FC = () => {
                   placeholderTextColor={colors.textSecondary}
                   keyboardType="number-pad"
                   secureTextEntry
-                  maxLength={4}
+                  maxLength={6}
                   value={pinSetup.currentPin}
                   onChangeText={(text) => setPinSetup({ ...pinSetup, currentPin: text })}
                 />
@@ -868,11 +989,11 @@ export const WalletScreen: React.FC = () => {
             <ThemedText style={styles.label}>{pinStatus?.hasTransactionPin ? 'New PIN' : 'PIN'}</ThemedText>
             <TextInput
               style={styles.input}
-              placeholder="4-digit PIN"
+              placeholder="4 or 6 digit PIN"
               placeholderTextColor={colors.textSecondary}
               keyboardType="number-pad"
               secureTextEntry
-              maxLength={4}
+              maxLength={6}
               value={pinSetup.pin}
               onChangeText={(text) => setPinSetup({ ...pinSetup, pin: text })}
             />

@@ -20,6 +20,10 @@ import { SavingsModule } from './savings/savings.module';
 import { RiskModule } from './risk/risk.module';
 import { CardsModule } from './cards/cards.module';
 import { MerchantModule } from './merchant/merchant.module';
+import { FraudModule } from './fraud/fraud.module';
+import { ComplianceModule } from './compliance/compliance.module';
+import { AgencyModule } from './agency/agency.module';
+import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 
 @Module({
   imports: [
@@ -43,8 +47,12 @@ import { MerchantModule } from './merchant/merchant.module';
     RemittanceModule,
     SavingsModule,
     RiskModule,
+    ComplianceModule,
+    FraudModule,
     CardsModule,
-    MerchantModule
+    MerchantModule,
+    AgencyModule,
+    PlatformAdminModule
   ]
 })
 export class AppModule {}

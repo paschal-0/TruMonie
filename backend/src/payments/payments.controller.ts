@@ -28,7 +28,7 @@ export class PaymentsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.SUPER_ADMIN)
   @Post('internal/fund')
   async internalFund(@CurrentUser() user: User, @Body() dto: InternalFundingDto) {
     const targetUserId = dto.userId ?? user.id;

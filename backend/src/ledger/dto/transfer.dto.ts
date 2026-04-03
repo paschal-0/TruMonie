@@ -37,6 +37,6 @@ export class TransferDto {
 
   @IsString()
   @IsNotEmpty()
-  @Matches(/^\d{4}$/)
+  @Matches(/^(\d{4}|\d{6})$/)
   pin!: string;
 }

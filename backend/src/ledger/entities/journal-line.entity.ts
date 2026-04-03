@@ -33,4 +33,10 @@ export class JournalLine extends BaseEntity {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   memo!: string | null;
+
+  @Column({ type: 'date', default: () => 'CURRENT_DATE' })
+  valueDate!: string;
+
+  @Column({ type: 'varchar', length: 50, default: 'core-banking-engine' })
+  postedBy!: string;
 }

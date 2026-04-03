@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsNotEmpty, IsString, ValidateNested } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
 
 import { DeviceFingerprintDto } from './device-fingerprint.dto';
 
@@ -12,4 +12,11 @@ export class TransferDeviceDto {
   @IsString()
   @IsNotEmpty()
   otp!: string;
+
+  @IsUUID()
+  biometric_ticket!: string;
+
+  @IsOptional()
+  @IsString()
+  otp_destination?: string;
 }

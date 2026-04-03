@@ -18,13 +18,18 @@ import { InternalTransferV2Dto } from './dto/internal-transfer-v2.dto';
 import { NameEnquiryDto } from './dto/name-enquiry.dto';
 import { SaveTransferBeneficiaryDto } from './dto/save-transfer-beneficiary.dto';
 import { TransfersV2Service } from './transfers-v2.service';
+import { StepUpAuthService } from '../auth/step-up-auth.service';
+import { FraudService } from '../fraud/fraud.service';
+import { TransferDestinationType } from './entities/transfer.entity';
 
 @UseGuards(JwtAuthGuard)
 @Controller('transfers')
 export class TransfersV2Controller {
   constructor(
     private readonly usersService: UsersService,
-    private readonly transfersService: TransfersV2Service
+    private readonly transfersService: TransfersV2Service,
+    private readonly stepUpAuthService: StepUpAuthService,
+    private readonly fraudService: FraudService
   ) {}
 
   @Post('name-enquiry')
@@ -42,6 +47,19 @@ export class TransfersV2Controller {
   async createTransfer(@CurrentUser() user: User, @Body() dto: CreateTransferDto) {
     this.assertUserActive(user);
     await this.usersService.assertValidTransactionPin(user.id, dto.pin);
+    await this.stepUpAuthService.assertTransferStepUp(user, dto.amount.toString(), {
+      otpCode: dto.otp_code,
+      otpDestination: dto.otp_destination,
+      biometricTicket: dto.biometric_ticket
+    });
+    await this.fraudService.assessTransferRisk({
+      userId: user.id,
+      amountMinor: dto.amount.toString(),
+      destinationType: TransferDestinationType.NIP,
+      destinationAccount: dto.destination_account,
+      destinationBank: dto.destination_bank_code,
+      transactionReference: dto.idempotency_key
+    });
     return this.transfersService.createBankTransfer({
       userId: user.id,
       sourceWalletId: dto.source_wallet_id,
@@ -60,6 +78,17 @@ export class TransfersV2Controller {
   async internalTransfer(@CurrentUser() user: User, @Body() dto: InternalTransferV2Dto) {
     this.assertUserActive(user);
     await this.usersService.assertValidTransactionPin(user.id, dto.pin);
+    await this.stepUpAuthService.assertTransferStepUp(user, dto.amount.toString(), {
+      otpCode: dto.otp_code,
+      otpDestination: dto.otp_destination,
+      biometricTicket: dto.biometric_ticket
+    });
+    await this.fraudService.assessTransferRisk({
+      userId: user.id,
+      amountMinor: dto.amount.toString(),
+      destinationType: TransferDestinationType.INTERNAL,
+      transactionReference: dto.idempotency_key
+    });
     return this.transfersService.createInternalTransfer({
       userId: user.id,
       sourceWalletId: dto.source_wallet_id,

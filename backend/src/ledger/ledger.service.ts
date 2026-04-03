@@ -5,12 +5,18 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
-  Logger
+  Logger,
+  OnModuleInit
 } from '@nestjs/common';
-import { DataSource, QueryRunner } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, QueryRunner, Repository } from 'typeorm';
 
 import { REDIS_CLIENT } from '../redis/redis.module';
+import { DEFAULT_GL_CHART, resolveGlAccountCode } from './core-banking.chart';
+import { CoreBankingErrorCode, CoreBankingException } from './core-banking.errors';
 import { Account } from './entities/account.entity';
+import { GlAccount, GlNormalBalance } from './entities/gl-account.entity';
+import { GlPosting } from './entities/gl-posting.entity';
 import { JournalEntry } from './entities/journal-entry.entity';
 import { JournalLine } from './entities/journal-line.entity';
 import {
@@ -63,17 +69,23 @@ interface TransferParams {
 }
 
 @Injectable()
-export class LedgerService {
+export class LedgerService implements OnModuleInit {
   private readonly logger = new Logger(LedgerService.name);
 
   constructor(
     private readonly dataSource: DataSource,
     private readonly walletEventsService: WalletEventsService,
+    @InjectRepository(GlAccount)
+    private readonly glAccountRepo: Repository<GlAccount>,
     @Inject(REDIS_CLIENT)
     private readonly redisClient: {
       set: (key: string, value: string) => Promise<'OK' | null>;
     }
   ) {}
+
+  async onModuleInit() {
+    await this.ensureDefaultGlAccounts();
+  }
 
   async transfer(params: TransferParams) {
     const reference = `TRF-${Date.now()}`;
@@ -154,6 +166,11 @@ export class LedgerService {
         availableBalanceMinor: string;
         ledgerBalanceMinor: string;
       }> = [];
+      const valueDate =
+        this.readStringFromMetadata(params.metadata, 'valueDate') ??
+        new Date().toISOString().slice(0, 10);
+      const postedBy =
+        this.readStringFromMetadata(params.metadata, 'postedBy') ?? 'core-banking-engine';
 
       const entry = queryRunner.manager.create(JournalEntry, {
         reference: params.reference,
@@ -202,7 +219,9 @@ export class LedgerService {
           direction: line.direction,
           amountMinor: line.amountMinor,
           currency: line.currency,
-          memo: line.memo ?? null
+          memo: line.memo ?? null,
+          valueDate,
+          postedBy
         });
         await queryRunner.manager.save(journalLine);
 
@@ -241,6 +260,16 @@ export class LedgerService {
         await queryRunner.manager.save(account);
       }
 
+      await this.persistGlPostings({
+        queryRunner,
+        journalEntryId: entry.id,
+        description: params.description ?? 'Ledger posting',
+        valueDate,
+        postedBy,
+        lines: params.lines,
+        accounts
+      });
+
       await queryRunner.commitTransaction();
       await this.publishBalanceUpdates(walletBalanceUpdates);
       this.logger.log(`Posted journal entry ${entry.reference}`);
@@ -272,6 +301,40 @@ export class LedgerService {
           );
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  private async ensureDefaultGlAccounts() {
+    try {
+      for (const item of DEFAULT_GL_CHART) {
+        const existing = await this.glAccountRepo.findOne({ where: { accountCode: item.accountCode } });
+        if (existing) {
+          existing.accountName = item.accountName;
+          existing.parentCode = item.parentCode;
+          existing.accountType = item.accountType;
+          existing.normalBalance = item.normalBalance;
+          existing.isActive = true;
+          await this.glAccountRepo.save(existing);
+          continue;
+        }
+
+        await this.glAccountRepo.save(
+          this.glAccountRepo.create({
+            accountCode: item.accountCode,
+            accountName: item.accountName,
+            parentCode: item.parentCode,
+            accountType: item.accountType,
+            normalBalance: item.normalBalance,
+            currency: 'NGN',
+            balanceMinor: '0',
+            isActive: true
+          })
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        `GL chart initialization skipped: ${error instanceof Error ? error.message : 'unknown error'}`
+      );
     }
   }
 
@@ -315,7 +378,11 @@ export class LedgerService {
   }
 
   private shouldRecordWalletTransaction(type: AccountType): boolean {
-    return type === AccountType.WALLET_MAIN || type === AccountType.SAVINGS;
+    return (
+      type === AccountType.WALLET_MAIN ||
+      type === AccountType.SAVINGS ||
+      type === AccountType.AGENT
+    );
   }
 
   private defaultCategory(description?: string): string {
@@ -395,11 +462,114 @@ export class LedgerService {
       case AccountType.RESERVE:
         return EntryDirection.DEBIT; // assets
       case AccountType.WALLET_MAIN:
+      case AccountType.AGENT:
       case AccountType.WALLET_ESCROW:
       case AccountType.FEES:
       case AccountType.SAVINGS:
       default:
         return EntryDirection.CREDIT; // liabilities/revenue
     }
+  }
+
+  private async persistGlPostings(params: {
+    queryRunner: QueryRunner;
+    journalEntryId: string;
+    description: string;
+    valueDate: string;
+    postedBy: string;
+    lines: LedgerLineInput[];
+    accounts: Map<string, Account>;
+  }) {
+    const postingCandidates = params.lines.map((line) => {
+      const account = params.accounts.get(line.accountId);
+      if (!account) {
+        throw new CoreBankingException(
+          CoreBankingErrorCode.INVALID_POSTING_RULE,
+          `Missing account in posting context: ${line.accountId}`
+        );
+      }
+      const glCode = resolveGlAccountCode({
+        accountType: account.type,
+        category: line.category,
+        direction: line.direction
+      });
+      return {
+        glCode,
+        direction: line.direction,
+        amountMinor: line.amountMinor
+      };
+    });
+
+    const debit = postingCandidates
+      .filter((candidate) => candidate.direction === EntryDirection.DEBIT)
+      .reduce((sum, candidate) => sum + BigInt(candidate.amountMinor), 0n);
+    const credit = postingCandidates
+      .filter((candidate) => candidate.direction === EntryDirection.CREDIT)
+      .reduce((sum, candidate) => sum + BigInt(candidate.amountMinor), 0n);
+    if (debit !== credit) {
+      throw new CoreBankingException(
+        CoreBankingErrorCode.LEDGER_IMBALANCE,
+        'Ledger imbalance - debits != credits'
+      );
+    }
+
+    const glCodes = [...new Set(postingCandidates.map((candidate) => candidate.glCode))];
+    const glAccounts = await params.queryRunner.manager
+      .getRepository(GlAccount)
+      .createQueryBuilder('glAccount')
+      .setLock('pessimistic_write')
+      .where('glAccount.accountCode IN (:...codes)', { codes: glCodes })
+      .getMany();
+    const glAccountMap = new Map(glAccounts.map((account) => [account.accountCode, account]));
+
+    for (const glCode of glCodes) {
+      if (!glAccountMap.has(glCode)) {
+        throw new CoreBankingException(
+          CoreBankingErrorCode.GL_ACCOUNT_NOT_FOUND,
+          `GL account not found: ${glCode}`
+        );
+      }
+    }
+
+    for (const candidate of postingCandidates) {
+      const glAccount = glAccountMap.get(candidate.glCode);
+      if (!glAccount) {
+        throw new CoreBankingException(
+          CoreBankingErrorCode.GL_ACCOUNT_NOT_FOUND,
+          `GL account not found: ${candidate.glCode}`
+        );
+      }
+      const posting = params.queryRunner.manager.create(GlPosting, {
+        transactionId: params.journalEntryId,
+        glAccountCode: candidate.glCode,
+        entryType: candidate.direction,
+        amountMinor: candidate.amountMinor,
+        narration: params.description,
+        valueDate: params.valueDate,
+        postedBy: params.postedBy
+      });
+      await params.queryRunner.manager.save(posting);
+      glAccount.balanceMinor = this.applyGlBalance(
+        glAccount.normalBalance,
+        glAccount.balanceMinor,
+        candidate.direction,
+        candidate.amountMinor
+      );
+    }
+
+    await params.queryRunner.manager.save(Array.from(glAccountMap.values()));
+  }
+
+  private applyGlBalance(
+    normalBalance: GlNormalBalance,
+    currentBalanceMinor: string,
+    direction: EntryDirection,
+    amountMinor: string
+  ) {
+    const current = BigInt(currentBalanceMinor);
+    const amount = BigInt(amountMinor);
+    const normalDirection =
+      normalBalance === GlNormalBalance.DEBIT ? EntryDirection.DEBIT : EntryDirection.CREDIT;
+    return direction === normalDirection ? (current + amount).toString() : (current - amount).toString();
   }
 }

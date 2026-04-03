@@ -2,6 +2,8 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 import { AccountsService } from '../ledger/accounts.service';
 import { UsersService } from '../users/users.service';
@@ -11,6 +13,19 @@ import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RefreshTokensService } from './refresh-tokens.service';
 import { addSeconds } from '../utils/time';
+import { AdminUser } from '../platform-admin/entities/admin-user.entity';
+import { UserRole } from '../users/entities/user.entity';
+import { OtpService } from './otp.service';
+
+const ADMIN_ROLES = new Set<UserRole>([
+  UserRole.ADMIN,
+  UserRole.SUPER_ADMIN,
+  UserRole.COMPLIANCE_OFFICER,
+  UserRole.OPERATIONS_MANAGER,
+  UserRole.FINANCE_OFFICER,
+  UserRole.CUSTOMER_SUPPORT,
+  UserRole.AUDITOR
+]);
 
 @Injectable()
 export class AuthService {
@@ -19,7 +34,10 @@ export class AuthService {
     private readonly accountsService: AccountsService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    private readonly refreshTokensService: RefreshTokensService
+    private readonly refreshTokensService: RefreshTokensService,
+    private readonly otpService: OtpService,
+    @InjectRepository(AdminUser)
+    private readonly adminUserRepo: Repository<AdminUser>
   ) {}
 
   async register(dto: RegisterDto) {
@@ -42,6 +60,49 @@ export class AuthService {
 
     await this.usersService.updateLastLogin(user.id);
     return {
+      user: this.sanitizeUser(user),
+      tokens: await this.signTokens(user)
+    };
+  }
+
+  async loginAdmin(dto: { identifier: string; password: string; mfaCode?: string }) {
+    const user = await this.usersService.findByEmailOrPhoneWithSecret(dto.identifier);
+    if (!user || !(await this.usersService.verifySecret(user.passwordHash, dto.password))) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    if (!ADMIN_ROLES.has(user.role)) {
+      throw new UnauthorizedException('Admin role required');
+    }
+
+    const adminProfile = await this.adminUserRepo.findOne({ where: { userId: user.id } });
+    if (adminProfile && !adminProfile.isActive) {
+      throw new UnauthorizedException('Admin account is inactive');
+    }
+
+    const mfaEnabled = adminProfile?.mfaEnabled ?? true;
+    const enforceMfa = this.configService.get<boolean>('platformAdmin.enforceMfa', false);
+    if (enforceMfa && mfaEnabled) {
+      if (!dto.mfaCode) {
+        await this.otpService.sendOtp(user.email.toLowerCase(), 'email', 'ADMIN_LOGIN');
+        return {
+          mfa_required: true,
+          destination: this.maskEmail(user.email),
+          message: 'MFA OTP sent to admin email'
+        };
+      }
+      const verify = await this.otpService.verifyOtp(user.email.toLowerCase(), 'ADMIN_LOGIN', dto.mfaCode);
+      if (!verify.verified) {
+        throw new UnauthorizedException('Invalid or expired MFA code');
+      }
+    }
+
+    await this.usersService.updateLastLogin(user.id);
+    if (adminProfile) {
+      adminProfile.lastLoginAt = new Date();
+      await this.adminUserRepo.save(adminProfile);
+    }
+    return {
+      mfa_required: false,
       user: this.sanitizeUser(user),
       tokens: await this.signTokens(user)
     };
@@ -87,6 +148,11 @@ export class AuthService {
     } catch (error) {
       throw new UnauthorizedException('Invalid refresh token');
     }
+  }
+
+  async revokeAllSessions(userId: string) {
+    await this.refreshTokensService.revokeUserTokens(userId);
+    return { revoked: true };
   }
 
   private async signTokens(user: { id: string; email: string; phoneNumber: string }) {
@@ -138,5 +204,12 @@ export class AuthService {
       return Number.parseInt(trimmed, 10);
     }
     return trimmed;
+  }
+
+  private maskEmail(email: string) {
+    const [name, domain] = email.split('@');
+    if (!name || !domain) return email;
+    if (name.length <= 2) return `${name[0]}***@${domain}`;
+    return `${name.slice(0, 2)}***@${domain}`;
   }
 }

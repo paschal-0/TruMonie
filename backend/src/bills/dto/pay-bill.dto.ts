@@ -38,7 +38,7 @@ export class PayBillDto {
 
   @IsString()
   @IsNotEmpty()
-  @Matches(/^\d{4}$/)
+  @Matches(/^(\d{4}|\d{6})$/)
   pin!: string;
 
   @IsString()
@@ -46,4 +46,3 @@ export class PayBillDto {
   @MaxLength(128)
   idempotency_key!: string;
 }
-

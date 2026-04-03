@@ -42,3 +42,7 @@ export function clearSession() {
   clearStoredUser();
 }
 
+export function isAdminRole(role?: string | null) {
+  if (!role) return false;
+  return role !== 'USER';
+}

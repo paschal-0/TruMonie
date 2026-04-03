@@ -32,3 +32,25 @@ export function useSetLoginPassword(token?: string) {
     mutationFn: (body: any) => apiPost('/auth/password/set', body, token)
   });
 }
+
+export function useCreateBiometricChallenge(token?: string) {
+  return useMutation({
+    mutationFn: (body: { type?: 'FINGERPRINT' | 'FACE_ID' }) =>
+      apiPost<{ challenge_id: string; type: string; expires_at: string }>(
+        '/auth/biometric/challenge',
+        body,
+        token
+      )
+  });
+}
+
+export function useVerifyBiometricChallenge(token?: string) {
+  return useMutation({
+    mutationFn: (body: { challenge_id: string; signed_attestation: string }) =>
+      apiPost<{ verified: boolean; ticket_id: string; expires_at: string }>(
+        '/auth/biometric/verify',
+        body,
+        token
+      )
+  });
+}

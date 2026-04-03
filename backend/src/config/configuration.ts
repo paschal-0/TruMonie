@@ -43,6 +43,19 @@ export interface WalletConfig {
   nubanBankCode: string;
 }
 
+export interface SecurityConfig {
+  pinAllowedLengthsCsv: string;
+  pinMaxWrongAttempts: number;
+  pinLockoutMinutesCsv: string;
+  pinExpiryDays: number;
+  transferOtpThresholdMinor: string;
+  transferBiometricThresholdMinor: string;
+  transferOtpPurpose: string;
+  deviceTransferOtpPurpose: string;
+  biometricChallengeTtlSeconds: number;
+  biometricTicketTtlSeconds: number;
+}
+
 export interface MerchantConfig {
   defaultPtsaId: string;
   posFeeBps: number;
@@ -51,6 +64,16 @@ export interface MerchantConfig {
     t0Cron: string;
     t1Cron: string;
   };
+}
+
+export interface FraudConfig {
+  modelVersion: string;
+  reportSchedulerIntervalMs: number;
+  nfiuEscalationEnabled: boolean;
+  eventProcessorIntervalMs: number;
+  eventBatchSize: number;
+  mlEnabled: boolean;
+  mlWeight: number;
 }
 
 export interface IntegrationsConfig {
@@ -110,6 +133,16 @@ export interface IntegrationsConfig {
     bvnVerifyPath: string;
     ninVerifyPath: string;
     faceComparePath: string;
+    timeoutMs: number;
+  };
+}
+
+export interface PlatformAdminConfig {
+  institutionCode: string;
+  enforceMfa: boolean;
+  slsg: {
+    baseUrl?: string;
+    apiKey?: string;
     timeoutMs: number;
   };
 }
@@ -177,6 +210,25 @@ export default () => ({
   wallet: {
     nubanBankCode: process.env.WALLET_NUBAN_BANK_CODE || '340'
   } as WalletConfig,
+  security: {
+    pinAllowedLengthsCsv: process.env.SECURITY_PIN_ALLOWED_LENGTHS || '4,6',
+    pinMaxWrongAttempts: parseInt(process.env.SECURITY_PIN_MAX_WRONG_ATTEMPTS || '5', 10),
+    pinLockoutMinutesCsv: process.env.SECURITY_PIN_LOCKOUT_MINUTES || '30,60,1440',
+    pinExpiryDays: parseInt(process.env.SECURITY_PIN_EXPIRY_DAYS || '90', 10),
+    transferOtpThresholdMinor: process.env.SECURITY_TRANSFER_OTP_THRESHOLD_MINOR || '5000000',
+    transferBiometricThresholdMinor:
+      process.env.SECURITY_TRANSFER_BIOMETRIC_THRESHOLD_MINOR || '50000000',
+    transferOtpPurpose: process.env.SECURITY_TRANSFER_OTP_PURPOSE || 'TRANSFER_MFA',
+    deviceTransferOtpPurpose: process.env.SECURITY_DEVICE_TRANSFER_OTP_PURPOSE || 'DEVICE_TRANSFER',
+    biometricChallengeTtlSeconds: parseInt(
+      process.env.SECURITY_BIOMETRIC_CHALLENGE_TTL_SECONDS || '60',
+      10
+    ),
+    biometricTicketTtlSeconds: parseInt(
+      process.env.SECURITY_BIOMETRIC_TICKET_TTL_SECONDS || '120',
+      10
+    )
+  } as SecurityConfig,
   merchant: {
     defaultPtsaId: process.env.MERCHANT_DEFAULT_PTSA_ID || 'PTSA_SIM',
     posFeeBps: parseInt(process.env.MERCHANT_POS_FEE_BPS || '100', 10),
@@ -187,6 +239,19 @@ export default () => ({
       t1Cron: process.env.MERCHANT_SETTLEMENT_T1_CRON || '0 6 * * *'
     }
   } as MerchantConfig,
+  fraud: {
+    modelVersion: process.env.FRAUD_MODEL_VERSION || 'fraud-v1.0.0',
+    reportSchedulerIntervalMs: parseInt(process.env.FRAUD_REPORT_SCHEDULER_INTERVAL_MS || '60000', 10),
+    nfiuEscalationEnabled:
+      (process.env.FRAUD_NFIU_ESCALATION_ENABLED || 'true').toLowerCase() !== 'false',
+    eventProcessorIntervalMs: parseInt(
+      process.env.FRAUD_EVENT_PROCESSOR_INTERVAL_MS || '15000',
+      10
+    ),
+    eventBatchSize: parseInt(process.env.FRAUD_EVENT_BATCH_SIZE || '100', 10),
+    mlEnabled: (process.env.FRAUD_ML_ENABLED || 'true').toLowerCase() !== 'false',
+    mlWeight: parseFloat(process.env.FRAUD_ML_WEIGHT || '0.35')
+  } as FraudConfig,
   integrations: {
     defaultPaymentProvider: process.env.DEFAULT_PAYMENT_PROVIDER || 'licensed',
     defaultBillsProvider: process.env.DEFAULT_BILLS_PROVIDER || 'licensed',
@@ -258,5 +323,14 @@ export default () => ({
         '/verify/identity/face-comparison',
       timeoutMs: parseInt(process.env.INTERSWITCH_TIMEOUT_MS || '10000', 10)
     }
-  } as IntegrationsConfig
+  } as IntegrationsConfig,
+  platformAdmin: {
+    institutionCode: process.env.INSTITUTION_CODE || 'TRUMONIE',
+    enforceMfa: (process.env.ADMIN_MFA_ENFORCED || 'false').toLowerCase() === 'true',
+    slsg: {
+      baseUrl: process.env.SLSG_BASE_URL,
+      apiKey: process.env.SLSG_API_KEY,
+      timeoutMs: parseInt(process.env.SLSG_TIMEOUT_MS || '10000', 10)
+    }
+  } as PlatformAdminConfig
 });

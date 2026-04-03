@@ -23,7 +23,13 @@ export enum LimitTier {
 
 export enum UserRole {
   USER = 'USER',
-  ADMIN = 'ADMIN'
+  ADMIN = 'ADMIN',
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  COMPLIANCE_OFFICER = 'COMPLIANCE_OFFICER',
+  OPERATIONS_MANAGER = 'OPERATIONS_MANAGER',
+  FINANCE_OFFICER = 'FINANCE_OFFICER',
+  CUSTOMER_SUPPORT = 'CUSTOMER_SUPPORT',
+  AUDITOR = 'AUDITOR'
 }
 
 export enum AccountNumberSource {
@@ -50,6 +56,21 @@ export class User extends BaseEntity {
 
   @Column({ type: 'varchar', length: 255, nullable: true, select: false })
   pinHash!: string | null;
+
+  @Column({ type: 'jsonb', nullable: true, default: () => "'[]'::jsonb", select: false })
+  pinHistory!: string[] | null;
+
+  @Column({ type: 'integer', default: 0, select: false })
+  pinFailedAttempts!: number;
+
+  @Column({ type: 'integer', default: 0, select: false })
+  pinLockLevel!: number;
+
+  @Column({ type: 'timestamp with time zone', nullable: true, select: false })
+  pinLockUntil!: Date | null;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  pinUpdatedAt!: Date | null;
 
   @Column({ type: 'varchar', length: 100 })
   firstName!: string;

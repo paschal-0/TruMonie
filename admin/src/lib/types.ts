@@ -4,7 +4,15 @@ export interface AdminUser {
   phoneNumber: string;
   firstName: string;
   lastName: string;
-  role: 'USER' | 'ADMIN';
+  role:
+    | 'USER'
+    | 'ADMIN'
+    | 'SUPER_ADMIN'
+    | 'COMPLIANCE_OFFICER'
+    | 'OPERATIONS_MANAGER'
+    | 'FINANCE_OFFICER'
+    | 'CUSTOMER_SUPPORT'
+    | 'AUDITOR';
 }
 
 export interface ApiErrorShape {
@@ -13,4 +21,3 @@ export interface ApiErrorShape {
   message: string;
   details?: unknown;
 }
-

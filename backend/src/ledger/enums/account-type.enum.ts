@@ -1,5 +1,6 @@
 export enum AccountType {
   WALLET_MAIN = 'WALLET_MAIN',
+  AGENT = 'AGENT',
   WALLET_ESCROW = 'WALLET_ESCROW',
   TREASURY = 'TREASURY',
   FEES = 'FEES',

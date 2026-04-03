@@ -36,8 +36,21 @@ export class CreateTransferDto {
   narration?: string;
 
   @IsString()
-  @Matches(/^\d{4}$/)
+  @Matches(/^(\d{4}|\d{6})$/)
   pin!: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{6}$/)
+  otp_code?: string;
+
+  @IsOptional()
+  @IsString()
+  otp_destination?: string;
+
+  @IsOptional()
+  @IsUUID()
+  biometric_ticket?: string;
 
   @IsUUID()
   idempotency_key!: string;

@@ -28,8 +28,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @Get('me/pin-status')
   async pinStatus(@CurrentUser() requester: User) {
-    const hasTransactionPin = await this.usersService.hasTransactionPin(requester.id);
-    return { hasTransactionPin };
+    return this.usersService.getTransactionPinStatus(requester.id);
   }
 
   @UseGuards(JwtAuthGuard)

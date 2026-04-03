@@ -365,6 +365,12 @@ export const SettingsScreen: React.FC = () => {
           onPress={() => navigation.navigate('MerchantHub')}
         />
         <Row
+          icon="people-circle"
+          title="Agency Banking"
+          subtitle="Agent onboarding, cash-in/cash-out, commissions"
+          onPress={() => navigation.navigate('Agency')}
+        />
+        <Row
           icon="cash-outline"
           title="Currency"
           subtitle="NGN (\u20A6)"

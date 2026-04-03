@@ -74,6 +74,46 @@ class EnvironmentVariables {
 
   @IsString()
   @IsOptional()
+  SECURITY_PIN_ALLOWED_LENGTHS?: string;
+
+  @IsNumber()
+  @IsOptional()
+  SECURITY_PIN_MAX_WRONG_ATTEMPTS?: number;
+
+  @IsString()
+  @IsOptional()
+  SECURITY_PIN_LOCKOUT_MINUTES?: string;
+
+  @IsNumber()
+  @IsOptional()
+  SECURITY_PIN_EXPIRY_DAYS?: number;
+
+  @IsString()
+  @IsOptional()
+  SECURITY_TRANSFER_OTP_THRESHOLD_MINOR?: string;
+
+  @IsString()
+  @IsOptional()
+  SECURITY_TRANSFER_BIOMETRIC_THRESHOLD_MINOR?: string;
+
+  @IsString()
+  @IsOptional()
+  SECURITY_TRANSFER_OTP_PURPOSE?: string;
+
+  @IsString()
+  @IsOptional()
+  SECURITY_DEVICE_TRANSFER_OTP_PURPOSE?: string;
+
+  @IsNumber()
+  @IsOptional()
+  SECURITY_BIOMETRIC_CHALLENGE_TTL_SECONDS?: number;
+
+  @IsNumber()
+  @IsOptional()
+  SECURITY_BIOMETRIC_TICKET_TTL_SECONDS?: number;
+
+  @IsString()
+  @IsOptional()
   MERCHANT_DEFAULT_PTSA_ID?: string;
 
   @IsNumber()
@@ -91,6 +131,34 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   MERCHANT_SETTLEMENT_T1_CRON?: string;
+
+  @IsString()
+  @IsOptional()
+  FRAUD_MODEL_VERSION?: string;
+
+  @IsNumber()
+  @IsOptional()
+  FRAUD_REPORT_SCHEDULER_INTERVAL_MS?: number;
+
+  @IsString()
+  @IsOptional()
+  FRAUD_NFIU_ESCALATION_ENABLED?: string;
+
+  @IsNumber()
+  @IsOptional()
+  FRAUD_EVENT_PROCESSOR_INTERVAL_MS?: number;
+
+  @IsNumber()
+  @IsOptional()
+  FRAUD_EVENT_BATCH_SIZE?: number;
+
+  @IsString()
+  @IsOptional()
+  FRAUD_ML_ENABLED?: string;
+
+  @IsNumber()
+  @IsOptional()
+  FRAUD_ML_WEIGHT?: number;
 
   @IsString()
   @IsOptional()
@@ -343,6 +411,26 @@ class EnvironmentVariables {
   @IsNumber()
   @IsOptional()
   INTERSWITCH_TIMEOUT_MS?: number;
+
+  @IsString()
+  @IsOptional()
+  INSTITUTION_CODE?: string;
+
+  @IsString()
+  @IsOptional()
+  ADMIN_MFA_ENFORCED?: string;
+
+  @IsString()
+  @IsOptional()
+  SLSG_BASE_URL?: string;
+
+  @IsString()
+  @IsOptional()
+  SLSG_API_KEY?: string;
+
+  @IsNumber()
+  @IsOptional()
+  SLSG_TIMEOUT_MS?: number;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

@@ -90,6 +90,9 @@ export function useCreateBankTransfer(token?: string) {
       amount: number;
       narration?: string;
       pin: string;
+      otp_code?: string;
+      otp_destination?: string;
+      biometric_ticket?: string;
       idempotency_key: string;
       session_id?: string;
       provider?: string;
@@ -107,6 +110,9 @@ export function useCreateInternalTransfer(token?: string) {
       amount: number;
       narration?: string;
       pin: string;
+      otp_code?: string;
+      otp_destination?: string;
+      biometric_ticket?: string;
       idempotency_key: string;
     }) => apiPost<InternalTransferResponse>('/transfers/internal', body, token),
     onSuccess: () => invalidateWalletData(queryClient)

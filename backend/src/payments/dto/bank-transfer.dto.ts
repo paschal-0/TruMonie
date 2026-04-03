@@ -1,4 +1,13 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsPositive, IsString, Matches, MaxLength } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsPositive,
+  IsString,
+  IsUUID,
+  Matches,
+  MaxLength
+} from 'class-validator';
 
 import { Currency } from '../../ledger/enums/currency.enum';
 
@@ -32,6 +41,19 @@ export class BankTransferDto {
 
   @IsString()
   @IsNotEmpty()
-  @Matches(/^\d{4}$/)
+  @Matches(/^(\d{4}|\d{6})$/)
   pin!: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{6}$/)
+  otpCode?: string;
+
+  @IsOptional()
+  @IsString()
+  otpDestination?: string;
+
+  @IsOptional()
+  @IsUUID()
+  biometricTicket?: string;
 }

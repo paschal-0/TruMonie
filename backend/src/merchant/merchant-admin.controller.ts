@@ -44,6 +44,7 @@ export class MerchantAdminController {
   }
 
   @Patch(':id/status')
+  @Roles(UserRole.SUPER_ADMIN)
   updateMerchantStatus(
     @CurrentUser() admin: User,
     @Param('id') id: string,
@@ -75,6 +76,7 @@ export class MerchantAdminController {
   }
 
   @Patch('terminals/:id/status')
+  @Roles(UserRole.SUPER_ADMIN)
   updateTerminalStatus(
     @CurrentUser() admin: User,
     @Param('id') id: string,
@@ -113,6 +115,7 @@ export class MerchantAdminController {
   }
 
   @Patch('settlements/:id/status')
+  @Roles(UserRole.SUPER_ADMIN)
   updateSettlementStatus(
     @CurrentUser() admin: User,
     @Param('id') id: string,
@@ -153,6 +156,7 @@ export class MerchantAdminController {
   }
 
   @Post('settlements/process')
+  @Roles(UserRole.SUPER_ADMIN)
   processSettlements(@CurrentUser() admin: User, @Body() dto: AdminProcessSettlementDto) {
     return this.merchantService.adminProcessSettlementCycle({
       adminUserId: admin.id,

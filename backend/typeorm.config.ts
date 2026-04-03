@@ -27,12 +27,27 @@ import { Notification } from './src/notifications/entities/notification.entity';
 import { WalletEvent } from './src/ledger/entities/wallet-event.entity';
 import { WalletTransaction } from './src/ledger/entities/wallet-transaction.entity';
 import { VirtualAccount } from './src/ledger/entities/virtual-account.entity';
+import { GlAccount } from './src/ledger/entities/gl-account.entity';
+import { GlPosting } from './src/ledger/entities/gl-posting.entity';
+import { ProfitSharingPool } from './src/ledger/entities/profit-sharing-pool.entity';
+import { ProfitDistribution } from './src/ledger/entities/profit-distribution.entity';
 import { Transfer } from './src/payments/entities/transfer.entity';
 import { TransferBeneficiary } from './src/payments/entities/transfer-beneficiary.entity';
 import { Merchant } from './src/merchant/entities/merchant.entity';
 import { PosTerminal } from './src/merchant/entities/pos-terminal.entity';
 import { Settlement } from './src/merchant/entities/settlement.entity';
 import { MerchantTransaction } from './src/merchant/entities/merchant-transaction.entity';
+import { Agent } from './src/agency/entities/agent.entity';
+import { AgentExclusivity } from './src/agency/entities/agent-exclusivity.entity';
+import { AgentWalletConfig } from './src/agency/entities/agent-wallet-config.entity';
+import { AgentLimit } from './src/agency/entities/agent-limit.entity';
+import { AgentTransaction } from './src/agency/entities/agent-transaction.entity';
+import { AgentCommission } from './src/agency/entities/agent-commission.entity';
+import { Permission } from './src/platform-admin/entities/permission.entity';
+import { PendingAction } from './src/platform-admin/entities/pending-action.entity';
+import { SystemConfig } from './src/platform-admin/entities/system-config.entity';
+import { RegulatorySubmission } from './src/platform-admin/entities/regulatory-submission.entity';
+import { AdminUser } from './src/platform-admin/entities/admin-user.entity';
 
 dotenv.config();
 const config = configuration();
@@ -70,12 +85,27 @@ const dataSource = new DataSource({
     WalletEvent,
     WalletTransaction,
     VirtualAccount,
+    GlAccount,
+    GlPosting,
+    ProfitSharingPool,
+    ProfitDistribution,
     Transfer,
     TransferBeneficiary,
     Merchant,
     PosTerminal,
     Settlement,
-    MerchantTransaction
+    MerchantTransaction,
+    Agent,
+    AgentExclusivity,
+    AgentWalletConfig,
+    AgentLimit,
+    AgentTransaction,
+    AgentCommission,
+    Permission,
+    PendingAction,
+    SystemConfig,
+    RegulatorySubmission,
+    AdminUser
   ],
   migrations: ['src/migrations/*.ts'],
   namingStrategy: undefined, // handled in entities; keep default for migrations

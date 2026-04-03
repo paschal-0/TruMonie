@@ -21,6 +21,9 @@ import { OnboardingEventsService } from './onboarding-events.service';
 import { RiskModule } from '../risk/risk.module';
 import { KycModule } from '../kyc/kyc.module';
 import { LedgerModule } from '../ledger/ledger.module';
+import { BiometricChallengeService } from './biometric-challenge.service';
+import { StepUpAuthService } from './step-up-auth.service';
+import { AdminUser } from '../platform-admin/entities/admin-user.entity';
 
 @Module({
   imports: [
@@ -28,7 +31,7 @@ import { LedgerModule } from '../ledger/ledger.module';
     LedgerModule,
     RiskModule,
     KycModule,
-    TypeOrmModule.forFeature([RefreshToken, OnboardingEvent]),
+    TypeOrmModule.forFeature([RefreshToken, OnboardingEvent, AdminUser]),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -44,6 +47,8 @@ import { LedgerModule } from '../ledger/ledger.module';
     AuthService,
     JwtStrategy,
     OtpService,
+    BiometricChallengeService,
+    StepUpAuthService,
     OnboardingEventsService,
     RefreshTokensService,
     InternalOtpProvider,
@@ -61,6 +66,6 @@ import { LedgerModule } from '../ledger/ledger.module';
       inject: [InternalOtpProvider, LicensedOtpProvider, TwilioOtpProvider, ResendOtpProvider]
     }
   ],
-  exports: [AuthService]
+  exports: [AuthService, OtpService, BiometricChallengeService, StepUpAuthService]
 })
 export class AuthModule {}

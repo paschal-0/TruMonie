@@ -24,6 +24,8 @@ import { Transfer } from './entities/transfer.entity';
 import { TransferBeneficiary } from './entities/transfer-beneficiary.entity';
 import { BeneficiariesController, TransfersV2Controller } from './transfers-v2.controller';
 import { TransfersV2Service } from './transfers-v2.service';
+import { AuthModule } from '../auth/auth.module';
+import { FraudModule } from '../fraud/fraud.module';
 
 @Module({
   imports: [
@@ -32,6 +34,8 @@ import { TransfersV2Service } from './transfers-v2.service';
     UsersModule,
     RiskModule,
     NotificationsModule,
+    AuthModule,
+    FraudModule,
     TypeOrmModule.forFeature([
       Payout,
       FundingTransaction,

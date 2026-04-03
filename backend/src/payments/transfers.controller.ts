@@ -23,6 +23,9 @@ import { VelocityService } from '../risk/velocity.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CircuitBreakerService } from '../risk/circuit-breaker.service';
 import { WalletErrorCode, WalletException } from '../ledger/wallet.errors';
+import { StepUpAuthService } from '../auth/step-up-auth.service';
+import { FraudService } from '../fraud/fraud.service';
+import { TransferDestinationType } from './entities/transfer.entity';
 
 @UseGuards(JwtAuthGuard)
 @Controller('payments')
@@ -35,7 +38,9 @@ export class TransfersController {
     private readonly paymentsService: PaymentsService,
     private readonly velocityService: VelocityService,
     private readonly notificationsService: NotificationsService,
-    private readonly circuitBreakerService: CircuitBreakerService
+    private readonly circuitBreakerService: CircuitBreakerService,
+    private readonly stepUpAuthService: StepUpAuthService,
+    private readonly fraudService: FraudService
   ) {}
 
   @Post('p2p')
@@ -44,7 +49,19 @@ export class TransfersController {
       throw new ForbiddenException('User is frozen');
     }
     await this.usersService.assertValidTransactionPin(user.id, dto.pin);
+    await this.stepUpAuthService.assertTransferStepUp(user, dto.amountMinor.toString(), {
+      otpCode: dto.otpCode,
+      otpDestination: dto.otpDestination,
+      biometricTicket: dto.biometricTicket
+    });
     const senderWallet = await this.requireWallet(user.id, dto.currency);
+    await this.fraudService.assessTransferRisk({
+      userId: user.id,
+      amountMinor: dto.amountMinor.toString(),
+      sourceBalanceMinor: senderWallet.balanceMinor,
+      destinationType: TransferDestinationType.INTERNAL,
+      transactionReference: dto.idempotencyKey
+    });
     const recipient = await this.usersService.findByIdentifier(dto.recipientIdentifier);
     if (!recipient) {
       throw new BadRequestException('Recipient not found');
@@ -97,7 +114,20 @@ export class TransfersController {
       throw new ForbiddenException('User is frozen');
     }
     await this.usersService.assertValidTransactionPin(user.id, dto.pin);
+    await this.stepUpAuthService.assertTransferStepUp(user, dto.amountMinor.toString(), {
+      otpCode: dto.otpCode,
+      otpDestination: dto.otpDestination,
+      biometricTicket: dto.biometricTicket
+    });
     const senderWallet = await this.requireWallet(user.id, dto.currency);
+    await this.fraudService.assessTransferRisk({
+      userId: user.id,
+      amountMinor: dto.amountMinor.toString(),
+      sourceBalanceMinor: senderWallet.balanceMinor,
+      destinationType: TransferDestinationType.NIP,
+      destinationAccount: dto.accountNumber,
+      destinationBank: dto.bankCode
+    });
     await this.circuitBreakerService.assertWithinNewDeviceCap(user.id, dto.amountMinor.toString());
     await this.velocityService.assertWithinLimits(
       user.id,

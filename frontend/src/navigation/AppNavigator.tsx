@@ -23,6 +23,7 @@ import { MerchantOnboardingScreen } from '../screens/MerchantOnboardingScreen';
 import { MerchantTerminalsScreen } from '../screens/MerchantTerminalsScreen';
 import { MerchantSettlementsScreen } from '../screens/MerchantSettlementsScreen';
 import { MerchantTransactionsScreen } from '../screens/MerchantTransactionsScreen';
+import { AgencyScreen } from '../screens/AgencyScreen';
 
 const Tab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
@@ -78,6 +79,7 @@ export function AppNavigator() {
           <RootStack.Screen name="MerchantTerminals" component={MerchantTerminalsScreen} />
           <RootStack.Screen name="MerchantSettlements" component={MerchantSettlementsScreen} />
           <RootStack.Screen name="MerchantTransactions" component={MerchantTransactionsScreen} />
+          <RootStack.Screen name="Agency" component={AgencyScreen} />
         </>
       ) : (
         <>

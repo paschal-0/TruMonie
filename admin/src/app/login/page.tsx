@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { apiPost } from '@/lib/api';
-import { setStoredToken, setStoredUser } from '@/lib/auth';
+import { isAdminRole, setStoredToken, setStoredUser } from '@/lib/auth';
 import { ApiErrorShape, AdminUser } from '@/lib/types';
 
 interface LoginResponse {
@@ -14,6 +14,9 @@ interface LoginResponse {
     refreshToken: string;
     tokenType: string;
   };
+  mfa_required?: boolean;
+  destination?: string;
+  message?: string;
 }
 
 export default function LoginPage() {
@@ -22,6 +25,9 @@ export default function LoginPage() {
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaDestination, setMfaDestination] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,11 +42,18 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiPost<LoginResponse>('/auth/login', {
+      const response = await apiPost<LoginResponse>('/auth/admin/login', {
         identifier: identifier.trim(),
-        password
+        password,
+        ...(mfaCode ? { mfa_code: mfaCode } : {})
       });
-      if (!response?.user || response.user.role !== 'ADMIN') {
+      if (response?.mfa_required) {
+        setMfaRequired(true);
+        setMfaDestination(response.destination ?? null);
+        setLoading(false);
+        return;
+      }
+      if (!response?.user || !isAdminRole(response.user.role)) {
         setError('This account is not an admin account.');
         setLoading(false);
         return;
@@ -81,6 +94,20 @@ export default function LoginPage() {
             required
           />
         </div>
+
+        {mfaRequired ? (
+          <div className="form-row">
+            <label>MFA Code {mfaDestination ? `(sent to ${mfaDestination})` : ''}</label>
+            <input
+              value={mfaCode}
+              onChange={(e) => setMfaCode(e.target.value)}
+              type="text"
+              inputMode="numeric"
+              placeholder="6-digit code"
+              required
+            />
+          </div>
+        ) : null}
 
         {error ? <p className="error">{error}</p> : null}
 
